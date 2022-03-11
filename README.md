@@ -1,6 +1,6 @@
 # isaac-rover
 
-<details><summary>Docker (click to expand)</summary>
+<!---<details><summary>Docker (click to expand)</summary>--->
 
 ### Requirements
 
@@ -54,4 +54,4 @@ fi
 6. bash docker/run.sh <display>
   
 
-</details>
+<!---</details>--->

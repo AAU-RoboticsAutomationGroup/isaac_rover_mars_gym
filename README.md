@@ -29,7 +29,7 @@ sudo systemctl restart docker
   
 ### 1. Download Isaac Gym
   
-  1. Download Isaac Gym from https://forums.developer.nvidia.com/t/isaac-gym-preview-3-release-now-available/193865
+  1. Download Isaac Gym from https://developer.nvidia.com/isaac-gym
   2. Unzip Isaac Gym
   3. nano isaacgym/docker/run.sh
   4. Remove all text and paste

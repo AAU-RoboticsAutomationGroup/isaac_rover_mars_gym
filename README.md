@@ -29,7 +29,7 @@ sudo systemctl restart docker
   
 ### 1. Download Isaac Gym
   
-  1. Download Isaac Gym from https://forums.developer.nvidia.com/t/isaac-gym-preview-3-release-now-available/193865
+  1. Download Isaac Gym from https://developer.nvidia.com/isaac-gym
   2. Unzip Isaac Gym
   3. nano isaacgym/docker/run.sh
   4. Remove all text and paste
@@ -57,9 +57,12 @@ fi
 RUN git clone https://github.com/ExoMyRL/isaac_rover.git /home/gymuser/isaac_rover
 WORKDIR /home/gymuser/isaac_rover
 ```
-7. bash docker/build.sh
-8. bash docker/run.sh <display>
-9. Enter container from different terminals --- sudo docker exec -it isaacgym_container bash 
+7. sudo groupadd docker
+8. sudo gpasswd -a $USER docker
+9. restart PC
+10. bash docker/build.sh
+11. bash docker/run.sh DISPLAYPORT
+12. Enter container from different terminals --- sudo docker exec -it isaacgym_container bash 
   
 
 <!---</details>--->

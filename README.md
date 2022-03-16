@@ -57,9 +57,10 @@ fi
 RUN git clone https://github.com/ExoMyRL/isaac_rover.git /home/gymuser/isaac_rover
 WORKDIR /home/gymuser/isaac_rover
 ```
-7. bash docker/build.sh
-8. bash docker/run.sh DISPLAYPORT
-9. Enter container from different terminals --- sudo docker exec -it isaacgym_container bash 
+7.  sudo groupadd docker
+8. bash docker/build.sh
+9. bash docker/run.sh DISPLAYPORT
+10. Enter container from different terminals --- sudo docker exec -it isaacgym_container bash 
   
 
 <!---</details>--->

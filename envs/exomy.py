@@ -68,7 +68,7 @@ custom_parameters = [
     {
         "name": "--num_envs",
         "type": int,
-        "default": 16,
+        "default": 1,
         "help": "Number of environments to create",
     },
 ]

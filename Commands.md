@@ -5,6 +5,9 @@
 - **docker start *some_container***
 Starts *some_container*. For the isaac gym container: *docker start isaacgym_container *
 
+- **docker stop *some_container***
+Stops *some_container*. For the isaac gym container: *docker stop isaacgym_container *
+
 - **sudo docker exec -it isaacgym_container bash**
 Access the active docker *isaacgym_container* through a terminal
 

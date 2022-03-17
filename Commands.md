@@ -15,3 +15,8 @@ Access the active docker *isaacgym_container* through a terminal
 To run the exomy environment:
 1. (In the active isaacgym container) ***cd envs/***
 2. ***python exomy.py***
+
+To run Issac gym examples, clone them to docker.
+Upon execution of train.py, if error: ModuleNotFoundError: No module named *hydra*
+1. **cd IsaacGymEnvs**
+2. **pip install -e .**

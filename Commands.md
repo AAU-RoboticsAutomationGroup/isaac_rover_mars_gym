@@ -1,3 +1,6 @@
+# General
+- To edit files in docker, use **Remote - Containers** extension for visual studio code. Connect to docker through the *Remote Explorer* tab.
+
 # Commands for docker
  - **docker ps**
  Shows currently active docker containers

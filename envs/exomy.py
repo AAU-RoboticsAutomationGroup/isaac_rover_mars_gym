@@ -111,7 +111,7 @@ if args.use_gpu_pipeline:
 sim = gym.create_sim(
     args.compute_device_id,  # Index of CUDA-enabled GPU to be used for simulation
     args.graphics_device_id,  # Index of GPU to be used for rendering
-    gymapi.SIM_FLEX,  # FORCING FLEX SIMULATION FOR PROPPER COLLISION MESHES
+    gymapi.SIM_PHYSX,  # FORCING FLEX SIMULATION FOR PROPPER COLLISION MESHES
     sim_params,  # Simulation parameters
 )
 
@@ -248,17 +248,17 @@ default_dof_state["pos"] = exomy_mids
 # set DOF control properties
 #print(exomy_dof_props)
 exomy_dof_props["driveMode"] = (
-    gymapi.DOF_MODE_NONE,  # LFB bogie
+    gymapi.DOF_MODE_VEL,  # LFB bogie
     gymapi.DOF_MODE_POS,
     gymapi.DOF_MODE_VEL,
     gymapi.DOF_MODE_POS,
     gymapi.DOF_MODE_VEL,
-    gymapi.DOF_MODE_NONE,  # MRB bogie
+    gymapi.DOF_MODE_VEL,  # MRB bogie
     gymapi.DOF_MODE_POS,
     gymapi.DOF_MODE_VEL,
     gymapi.DOF_MODE_POS,
     gymapi.DOF_MODE_VEL,
-    gymapi.DOF_MODE_NONE,  # RFB bogie
+    gymapi.DOF_MODE_VEL,  # RFB bogie
     gymapi.DOF_MODE_POS,
     gymapi.DOF_MODE_VEL,
     gymapi.DOF_MODE_POS,
@@ -267,13 +267,13 @@ exomy_dof_props["driveMode"] = (
     gymapi.DOF_MODE_POS,  # Right eye
 )
 
-exomy_dof_props["stiffness"].fill(800.0)
-exomy_dof_props["damping"].fill(40.0)
+exomy_dof_props["stiffness"].fill(1.0)
+exomy_dof_props["damping"].fill(1.0)
 
 #################################################
 # initial root pose for exomy actors
 initial_pose = gymapi.Transform()
-initial_pose.p = gymapi.Vec3(0.0, 0.0, 0.27)
+initial_pose.p = gymapi.Vec3(1.0, 0.0, 0.37)
 initial_pose.r = gymapi.Quat(0, 0.0, 1.0, 0.0)
 
 
@@ -334,12 +334,14 @@ for i in range(num_envs):
 
     # Set DOF drive 'velocity' targets
     DRV_LF_joint_dof_handle = gym.find_actor_dof_handle(env0, exomy0_handle, "DRV_LF_joint")
+
     DRV_LM_joint_dof_handle = gym.find_actor_dof_handle(env0, exomy0_handle, "DRV_LM_joint")
     DRV_LR_joint_dof_handle = gym.find_actor_dof_handle(env0, exomy0_handle, "DRV_LR_joint")
     DRV_RF_joint_dof_handle = gym.find_actor_dof_handle(env0, exomy0_handle, "DRV_RF_joint")
     DRV_RM_joint_dof_handle = gym.find_actor_dof_handle(env0, exomy0_handle, "DRV_RM_joint")
     DRV_RR_joint_dof_handle = gym.find_actor_dof_handle(env0, exomy0_handle, "DRV_RR_joint")
     gym.set_dof_target_velocity(env0, DRV_LF_joint_dof_handle, -0.5 * math.pi)
+
     gym.set_dof_target_velocity(env0, DRV_LM_joint_dof_handle, -0.5 * math.pi)
     gym.set_dof_target_velocity(env0, DRV_LR_joint_dof_handle, -0.5 * math.pi)
     gym.set_dof_target_velocity(env0, DRV_RF_joint_dof_handle, 0.5 * math.pi)

@@ -27,8 +27,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from tasks.exomy import Exomy
+from tasks.ingenuity import Ingenuity
 
 # Mappings from strings to environments
 isaacgym_task_map = {
-    "Exomy": Exomy 
+    "Exomy": Exomy,
+    "Ingenuity": Ingenuity 
 }

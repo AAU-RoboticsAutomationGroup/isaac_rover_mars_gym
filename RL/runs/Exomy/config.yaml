@@ -2,7 +2,7 @@ task:
   name: Exomy
   physics_engine: ${..physics_engine}
   env:
-    numEnvs: ${resolve_default:1,${...num_envs}}
+    numEnvs: ${resolve_default:512,${...num_envs}}
     envSpacing: 2.5
     maxEpisodeLength: 2000
     enableDebugVis: false
@@ -85,7 +85,7 @@ train:
       lr_schedule: adaptive
       kl_threshold: 0.016
       score_to_win: 20000
-      max_epochs: ${resolve_default:500,${....max_iterations}}
+      max_epochs: ${resolve_default:50000,${....max_iterations}}
       save_best_after: 50
       save_frequency: 50
       grad_norm: 1.0
@@ -93,7 +93,7 @@ train:
       truncate_grads: true
       e_clip: 0.2
       horizon_length: 16
-      minibatch_size: 16
+      minibatch_size: 8192
       mini_epochs: 8
       critic_coef: 2
       clip_value: true

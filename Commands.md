@@ -15,9 +15,14 @@ Stops *some_container*. For the isaac gym container: *docker stop isaacgym_conta
 Access the active docker *isaacgym_container* through a terminal
 
 # Commands for Isaac
-To run the exomy environment:
+To run the standard exomy environment:
 1. (In the active isaacgym container) ***cd envs/***
 2. ***python exomy.py***
+
+To run our exomy environment:
+1. (In the active isaacgym container) ***cd RL/***
+2. ***python train2.py task=Exomy***
+
 
 To run Issac gym examples, clone them to docker.
 Upon execution of train.py, if error: ModuleNotFoundError: No module named *hydra*

@@ -1,5 +1,5 @@
 # Useful commands
-[Commands](Commands.md)
+[Commands](docs/Commands.md)
 
 # Install isaac-rover
 

@@ -71,7 +71,7 @@ class Exomy(VecTask):
         lower = gymapi.Vec3(0.5 * -spacing, -spacing, 0.0)
         upper = gymapi.Vec3(0.5 * spacing, spacing, spacing)
 
-        asset_root = "./assets"
+        asset_root = "../assets"
         exomy_asset_file = "urdf/exomy_model/urdf/exomy_model.urdf"
         
         # if "asset" in self.cfg["env"]:

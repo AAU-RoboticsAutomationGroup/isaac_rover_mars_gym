@@ -32,3 +32,12 @@ Upon execution of train.py, if error: ModuleNotFoundError: No module named *hydr
 # Other commands
 To run docker, such that programs can be installed through command-line
 1. **sudo docker exec -u root -it isaacgym_container /bin/bash**
+
+# Visual Studio Code and Live Share
+If live share wont work with the docker container, install code in the docker:
+1. Access docker in root: **sudo docker exec -it -u root isaacgym_container /bin/bash**
+2. Update the packages index and install the dependencies by running the following command as a user with sudo privileges: **apt update**
+3. **apt install software-properties-common apt-transport-https wget**
+4. Import the Microsoft GPG key using the following wget command: **wget -q https://packages.microsoft.com/keys/microsoft.asc -O- | apt-key add -**
+5. And enable the Visual Studio Code repository by typing: **add-apt-repository "deb [arch=amd64] https://packages.microsoft.com/repos/vscode stable main"**
+6. Once the apt repository is enabled , install the Visual Studio Code package: **apt install code**

@@ -7,6 +7,7 @@ import xml.etree.ElementTree as ET
 
 from utils.torch_jit_utils import *
 from tasks.base.vec_task import VecTask
+from utils.kinematics import Rover
 
 from isaacgym import gymutil, gymtorch, gymapi
 
@@ -16,7 +17,7 @@ class Exomy(VecTask):
     def __init__(self, cfg, sim_device, graphics_device_id, headless):
 
         self.cfg = cfg
-
+        self.Kinematics = Rover()
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
         self.cfg["env"]["numObservations"] = 13
         self.cfg["env"]["numActions"] = 12
@@ -125,7 +126,7 @@ class Exomy(VecTask):
         num_sets = len(env_ids)
         # set target position randomly with x, y in (-2, 2) and z in (1, 2)
         #print("ASDO:JNHSAOJPNHDJNO:HASDJUOIP")
-        self.target_root_positions[env_ids, 0:2] = (torch.rand(num_sets, 2, device=self.device) * 4) - 2
+        self.target_root_positions[env_ids, 0:2] = (torch.rand(num_sets, 2, device=self.device) * 7) - 3.5
         self.target_root_positions[env_ids, 2] = 0
         self.marker_positions[env_ids] = self.target_root_positions[env_ids]
         # copter "position" is at the bottom of the legs, so shift the target up so it visually aligns better
@@ -259,8 +260,8 @@ class Exomy(VecTask):
         actor_indices = self.all_actor_indices[env_ids, 0].flatten()
         #print(self.root_states[0])
         self.root_states[env_ids] = self.initial_root_states[env_ids]
-        self.root_states[env_ids, 0] = 1#torch_rand_float(-1.5, 1.5, (num_resets, 1), self.device).flatten()
-        self.root_states[env_ids, 1] = 1#torch_rand_float(-1.5, 1.5, (num_resets, 1), self.device).flatten()
+        self.root_states[env_ids, 0] = torch_rand_float(-1.5, 1.5, (num_resets, 1), self.device).flatten()
+        self.root_states[env_ids, 1] = torch_rand_float(-1.5, 1.5, (num_resets, 1), self.device).flatten()
         self.root_states[env_ids, 2] = 0.1#torch_rand_float(-0.2, 1.5, (num_resets, 1), self.device).flatten()
         self.dof_states = self.initial_dof_states
         self.gym.set_actor_root_state_tensor_indexed(self.sim,self.root_tensor, gymtorch.unwrap_tensor(actor_indices), num_resets)
@@ -280,8 +281,8 @@ class Exomy(VecTask):
 
     def pre_physics_step(self, actions):
         # 
-        set_target_ids = (self.progress_buf % 500 == 0).nonzero(as_tuple=False).squeeze(-1)
-        if  torch.any(self.progress_buf % 500 == 0):
+        set_target_ids = (self.progress_buf % 1000 == 0).nonzero(as_tuple=False).squeeze(-1)
+        if  torch.any(self.progress_buf % 1000 == 0):
             print(self.marker_positions)
         target_actor_indices = torch.tensor([], device=self.device, dtype=torch.int32)
         #if len(set_target_ids) > 0:
@@ -315,6 +316,7 @@ class Exomy(VecTask):
         #max = 100
         max = 2
         #actions_tensor = actions.to(self.device).squeeze() * 400
+        #pos, vel = self.Kinematics.Get_AckermannValues(1,1)
         actions_tensor[1::17]=(_actions[:,0]-0.5) * 2 * self.max_effort_pos  #1  #LF POS
         actions_tensor[2::17]=(_actions[:,1]-0.5) * 2 * self.max_effort_vel #2  #LF DRIVE
         actions_tensor[3::17]=(_actions[:,2]-0.5) * 2 * self.max_effort_pos #3  #LM POS
@@ -327,6 +329,18 @@ class Exomy(VecTask):
         actions_tensor[12::17]= (_actions[:,9]-0.5) * 2 * self.max_effort_vel #12 #RF DRIVE
         actions_tensor[13::17]=(_actions[:,10]-0.5) * 2 * self.max_effort_pos #13 #RM POS
         actions_tensor[14::17]=(_actions[:,11]-0.5) * 2 * self.max_effort_vel #14 #RM DRIVE
+        # actions_tensor[1::17]=pos[0]  #1  #LF POS
+        # actions_tensor[2::17]=vel[0] #2  #LF DRIVE
+        # actions_tensor[3::17]=pos[1] #3  #LM POS
+        # actions_tensor[4::17]=vel[0] #4  #LM DRIVE
+        # actions_tensor[6::17]=pos[2] #6  #LR POS
+        # actions_tensor[7::17]=vel[0] #7  #LR DRIVE
+        # actions_tensor[8::17]=pos[3]#8  #RR POS
+        # actions_tensor[9::17]=vel[0] #9  #RR DRIVE
+        # actions_tensor[11::17]=pos[4] #11 #RF POS 
+        # actions_tensor[12::17]=vel[0] #12 #RF DRIVE
+        # actions_tensor[13::17]=pos[5]#13 #RM POS
+        # actions_tensor[14::17]=vel[0] #14 #RM DRIVE
         # speed =10
         # actions_tensor[0] = 100 #BOTH REAR DRIVE        # actions_tensor[3] = 0
         # actions_tensor[2] = speed 
@@ -376,6 +390,7 @@ def compute_exomy_reward(root_positions, target_root_positions, reset_buf, progr
     pos_reward = 1.0 / (1.0 + target_dist * target_dist)
 
     reward = pos_reward
+    print(reward[0:5])
     ones = torch.ones_like(reset_buf)
     die = torch.zeros_like(reset_buf)
     # resets due to episode length

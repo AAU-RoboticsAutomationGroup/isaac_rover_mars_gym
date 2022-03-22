@@ -21,7 +21,7 @@ To run the standard exomy environment:
 
 To run our exomy environment:
 1. (In the active isaacgym container) ***cd RL/***
-2. ***python train2.py task=Exomy***
+2. ***python train.py task=Exomy***
 
 
 To run Issac gym examples, clone them to docker.

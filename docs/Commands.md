@@ -28,3 +28,7 @@ To run Issac gym examples, clone them to docker.
 Upon execution of train.py, if error: ModuleNotFoundError: No module named *hydra*
 1. **cd IsaacGymEnvs**
 2. **pip install -e .**
+
+# Other commands
+To run docker, such that programs can be installed through command-line
+1. **sudo docker exec -u root -it isaacgym_container /bin/bash**

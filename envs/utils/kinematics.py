@@ -21,16 +21,16 @@ def Ackermann(lin_vel, ang_vel):
     wheel_y = 20.0
     # Distance from center og the rover to the top (centimeters):
     y_top = 19.5 # check if it's correct
-    y_top_tensor = torch.tensor(y_top).repeat(len(lin_vel))
+    y_top_tensor = torch.tensor(y_top,device='cuda:0').repeat(lin_vel.size(dim=0))
     # Distance from center of the rover to the side (centimeters):
     x_side = 15.0 # check if it's correct
 
     # Calculate radius for each robot
-    radius = torch.where(ang_vel != 0, torch.div(torch.abs(lin_vel),torch.abs(ang_vel))*100,torch.zeros(len(lin_vel)))
+    radius = torch.where(ang_vel != 0, torch.div(torch.abs(lin_vel),torch.abs(ang_vel))*100,torch.zeros(lin_vel.size(dim=0),device='cuda:0'))
 
     # Initiate zero tensors
-    motor_velocities = torch.zeros(lin_vel.size(dim=0),6)
-    steering_angles = torch.zeros(lin_vel.size(dim=0),6)
+    motor_velocities = torch.zeros(lin_vel.size(dim=0),6,device='cuda:0')
+    steering_angles = torch.zeros(lin_vel.size(dim=0),6,device='cuda:0')
 
     #         """
     #         Steering angles conditions 
@@ -42,7 +42,7 @@ def Ackermann(lin_vel, ang_vel):
     #         Steering angles calculation 
     #         """   
     # If the turning point is within the chassis of the robot, turn on the spot:
-    turn_on_the_spot = torch.tensor(torch.atan2(y_top,x_side)).repeat(len(lin_vel))
+    turn_on_the_spot = torch.tensor(torch.atan2(y_top,x_side),device='cuda:0').repeat(lin_vel.size(dim=0))
     steering_angles[:,0] = torch.where(steering_condition1, turn_on_the_spot, steering_angles[:,0])
     steering_angles[:,1] = torch.where(steering_condition1, -turn_on_the_spot, steering_angles[:,1])
     steering_angles[:,4] = torch.where(steering_condition1, -turn_on_the_spot, steering_angles[:,4])

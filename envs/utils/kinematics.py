@@ -8,13 +8,13 @@ import torch
 import time
 def timeG(lin_vel,ang_vel):
     start = time.time()
-    G(lin_vel, ang_vel)
+    Ackermann(lin_vel, ang_vel)
     end = time.time()
     return (end-start)
 
 
 @torch.jit.script
-def G(lin_vel, ang_vel):
+def Ackermann(lin_vel, ang_vel):
     # type: (Tensor, Tensor) -> Tuple[Tensor, Tensor]
     
     wheel_x = 12.0

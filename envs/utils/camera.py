@@ -52,4 +52,5 @@ class camera:
         marker_handle = gym.create_actor(env, marker_asset, body_transform, "marker", collision_it, 1, 1)
         gym.set_rigid_body_color(env, marker_handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, gymapi.Vec3(1, 0, 0))
 
-
+    def render_cameras(self, gym, sim):
+        gym.render_all_camera_sensors(sim)

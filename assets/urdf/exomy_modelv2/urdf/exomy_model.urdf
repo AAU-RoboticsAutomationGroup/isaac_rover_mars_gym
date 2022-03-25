@@ -1,0 +1,1064 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="Exomy_URDF">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="0.00045536 -0.012468 0.054611"
+        rpy="0 0 0" />
+      <mass
+        value="0.3218" />
+      <inertia
+        ixx="0.0010882"
+        ixy="-6.6084E-06"
+        ixz="7.9122E-06"
+        iyy="0.00080227"
+        iyz="3.9237E-06"
+        izz="0.0013151" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.29804 0.29804 0.29804 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="Mast">
+    <inertial>
+      <origin
+        xyz="3.66089460873017E-10 0.08233304315001 -0.00290010879314957"
+        rpy="0 0 0" />
+      <mass
+        value="0.057" />
+      <inertia
+        ixx="0.000152420978940258"
+        ixy="-9.68556684554813E-11"
+        ixz="-1.73821809057202E-11"
+        iyy="1.17584014785884E-05"
+        iyz="5.60852483282308E-06"
+        izz="0.000152302280544561" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/Mast.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.250980392156863 0.250980392156863 0.250980392156863 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/Mast.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Mast_Joint"
+    type="fixed">
+    <origin
+      xyz="0 -0.05 0.108"
+      rpy="1.5708 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="Mast" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="3D_Cam">
+    <inertial>
+      <origin
+        xyz="1.1394E-05 -0.00013598 0.011556"
+        rpy="0 0 0" />
+      <mass
+        value="0.075" />
+      <inertia
+        ixx="7.7102E-06"
+        ixy="-2.6172E-10"
+        ixz="-1.7931E-08"
+        iyy="7.0257E-05"
+        iyz="4.9224E-08"
+        izz="7.1255E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/3D_Cam.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.89804 0.91765 0.92941 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/3D_Cam.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="3D_Cam_Joint"
+    type="fixed">
+    <origin
+      xyz="0 0.18695 -0.010942"
+      rpy="0.50615 0 0" />
+    <parent
+      link="Mast" />
+    <child
+      link="3D_Cam" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="Tracking_Cam">
+    <inertial>
+      <origin
+        xyz="0.00084895 9.5451E-06 -0.007004"
+        rpy="0 0 0" />
+      <mass
+        value="0.060" />
+      <inertia
+        ixx="9.4142E-07"
+        ixy="4.366E-09"
+        ixz="-1.3466E-08"
+        iyy="1.324E-05"
+        iyz="-1.906E-09"
+        izz="1.3936E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/Tracking_Cam.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.75294 0.75294 0.75294 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/Tracking_Cam.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Tracking_Cam_Joint"
+    type="fixed">
+    <origin
+      xyz="0 0.096086 0.026963"
+      rpy="0.22974 0 0" />
+    <parent
+      link="Mast" />
+    <child
+      link="Tracking_Cam" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="Right_Bogie">
+    <inertial>
+      <origin
+        xyz="-5.5394E-09 0.001854 -0.024649"
+        rpy="0 0 0" />
+      <mass
+        value="0.1165" />
+      <inertia
+        ixx="2.3035E-05"
+        ixy="2.7556E-11"
+        ixz="-8.4318E-13"
+        iyy="0.00012309"
+        iyz="4.1834E-07"
+        izz="0.00011372" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/Right_Bogie.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.29804 0.29804 0.29804 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/Right_Bogie.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Right_Bogie_Joint"
+    type="revolute">
+    <origin
+      xyz="-0.064 -0.055 0.0247"
+      rpy="-1.5708 0 -1.5708" />
+    <parent
+      link="base_link" />
+    <child
+      link="Right_Bogie" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-0.47"
+      upper="0.47"
+      veffort="0.0"
+      velocity="1.0" />
+  </joint>
+  <link
+    name="CR_Steer">
+    <inertial>
+      <origin
+        xyz="0.01203363471761 -0.0406229138422982 -0.000222359376198283"
+        rpy="0 0 0" />
+      <mass
+        value="0.0735" />
+      <inertia
+        ixx="3.37876859422885E-05"
+        ixy="4.74139030421875E-06"
+        ixz="-8.07843941765975E-09"
+        iyy="1.59707176313992E-05"
+        iyz="1.40508548795602E-07"
+        izz="4.11148929986377E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/CR_Steer.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.298039215686275 0.298039215686275 0.298039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/CR_Steer.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="CR_Steer_Joint"
+    type="revolute">
+    <origin
+      xyz="-0.08 0.016586 -0.039776"
+      rpy="3.1416 1.5708 0" />
+    <parent
+      link="Right_Bogie" />
+    <child
+      link="CR_Steer" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-1.57"
+      upper="1.57"
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+  <link
+    name="CR_Drive">
+    <inertial>
+      <origin
+        xyz="-0.016065 -0.00015627 -0.00020897"
+        rpy="0 0 0" />
+      <mass
+        value="0.060" />
+      <inertia
+        ixx="7.9779E-05"
+        ixy="-7.7915E-09"
+        ixz="-7.1726E-08"
+        iyy="5.1523E-05"
+        iyz="3.9137E-07"
+        izz="5.1536E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/CR_Drive.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.96863 0.87843 0.6 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/CR_Drive.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="CR_Drive_Joint"
+    type="continuous">
+    <origin
+      xyz="-0.026386 -0.063776 0"
+      rpy="3.1416 0 3.1416" />
+    <parent
+      link="CR_Steer" />
+    <child
+      link="CR_Drive" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+  <link
+    name="FR_Steer">
+    <inertial>
+      <origin
+        xyz="0.0119629306207104 -0.0406897111505116 -0.000220177394379573"
+        rpy="0 0 0" />
+      <mass
+        value="0.0735" />
+      <inertia
+        ixx="3.32440932757159E-05"
+        ixy="4.64777116749978E-06"
+        ixz="-7.91976339595232E-09"
+        iyy="1.57679798308961E-05"
+        iyz="1.37753534821621E-07"
+        izz="4.04701347498821E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/FR_steer.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.298039215686275 0.298039215686275 0.298039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/FR_steer.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="FR_Steer_Joint"
+    type="revolute">
+    <origin
+      xyz="0.08 0.016586 -0.039776"
+      rpy="3.1416 1.5708 0" />
+    <parent
+      link="Right_Bogie" />
+    <child
+      link="FR_Steer" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-1.57"
+      upper="1.57"
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+  <link
+    name="FR_Drive">
+    <inertial>
+      <origin
+        xyz="-0.016065 -0.00015627 -0.00020897"
+        rpy="0 0 0" />
+      <mass
+        value="0.06" />
+      <inertia
+        ixx="7.9779E-05"
+        ixy="-7.7915E-09"
+        ixz="-7.1726E-08"
+        iyy="5.1523E-05"
+        iyz="3.9137E-07"
+        izz="5.1536E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/FR_Drive.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.96863 0.87843 0.6 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/FR_Drive.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="FR_Drive_Joint"
+    type="continuous">
+    <origin
+      xyz="-0.026386 -0.063776 0"
+      rpy="3.1416 0 3.1416" />
+    <parent
+      link="FR_Steer" />
+    <child
+      link="FR_Drive" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+  <link
+    name="Left_Bogie">
+    <inertial>
+      <origin
+        xyz="-5.53942688247266E-09 -0.00185398288266573 0.024649299715712"
+        rpy="0 0 0" />
+      <mass
+        value="0.1165" />
+      <inertia
+        ixx="2.3035215404404E-05"
+        ixy="-2.75560711362092E-11"
+        ixz="8.43178696343352E-13"
+        iyy="0.000123085331415863"
+        iyz="4.18340958497994E-07"
+        izz="0.000113717182054983" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/Left_Bogie.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.298039215686275 0.298039215686275 0.298039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/Left_Bogie.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Left_Bogie_Joint"
+    type="revolute">
+    <origin
+      xyz="0.064 -0.055 0.0247"
+      rpy="1.5708 0 1.5708" />
+    <parent
+      link="base_link" />
+    <child
+      link="Left_Bogie" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-0.47"
+      upper="0.47"
+      veffort="0.0"
+      velocity="1.0" />
+  </joint>
+  <link
+    name="CL_Steer">
+    <inertial>
+      <origin
+        xyz="0.0119629306207103 -0.0406897111505118 -0.000220177394379541"
+        rpy="0 0 0" />
+      <mass
+        value="0.0735" />
+      <inertia
+        ixx="3.32440932757157E-05"
+        ixy="4.64777116749992E-06"
+        ixz="-7.91976339595595E-09"
+        iyy="1.57679798308961E-05"
+        iyz="1.37753534821613E-07"
+        izz="4.04701347498818E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/CL_Steer.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.298039215686275 0.298039215686275 0.298039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/CL_Steer.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="CL_Steer_Joint"
+    type="revolute">
+    <origin
+      xyz="0.08 -0.016586 0.039776"
+      rpy="0 -1.5708 0" />
+    <parent
+      link="Left_Bogie" />
+    <child
+      link="CL_Steer" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-1.57"
+      upper="1.57"
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+  <link
+    name="CL_Drive">
+    <inertial>
+      <origin
+        xyz="-0.016065 -0.00015627 -0.00020897"
+        rpy="0 0 0" />
+      <mass
+        value="0.06" />
+      <inertia
+        ixx="7.9779E-05"
+        ixy="-7.7915E-09"
+        ixz="-7.1726E-08"
+        iyy="5.1523E-05"
+        iyz="3.9137E-07"
+        izz="5.1536E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/CL_Drive.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.96863 0.87843 0.6 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/CL_Drive.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="CL_Drive_Joint"
+    type="continuous">
+    <origin
+      xyz="-0.026386 -0.063776 0"
+      rpy="-3.1416 0 3.1416" />
+    <parent
+      link="CL_Steer" />
+    <child
+      link="CL_Drive" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+  <link
+    name="FL_Steer">
+    <inertial>
+      <origin
+        xyz="-0.0120336347176097 -0.0361229138422982 0.00022235937619805"
+        rpy="0 0 0" />
+      <mass
+        value="0.0735" />
+      <inertia
+        ixx="3.37876859422883E-05"
+        ixy="-4.74139030421896E-06"
+        ixz="-8.07843941766599E-09"
+        iyy="1.59707176313992E-05"
+        iyz="-1.40508548795604E-07"
+        izz="4.11148929986375E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/FL_Steer.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.298039215686275 0.298039215686275 0.298039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/FL_Steer.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="FL_Steer_Joint"
+    type="revolute">
+    <origin
+      xyz="-0.08 -0.021086 0.039776"
+      rpy="0 1.5708 0" />
+    <parent
+      link="Left_Bogie" />
+    <child
+      link="FL_Steer" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-1.57"
+      upper="1.57"
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+  <link
+    name="FL_Drive">
+    <inertial>
+      <origin
+        xyz="0.0065655 -0.00015627 0.00020897"
+        rpy="0 0 0" />
+      <mass
+        value="0.06" />
+      <inertia
+        ixx="7.9779E-05"
+        ixy="7.7915E-09"
+        ixz="-7.1726E-08"
+        iyy="5.1523E-05"
+        iyz="-3.9137E-07"
+        izz="5.1536E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/FL_Drive.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.96863 0.87843 0.6 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/FL_Drive.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="FL_Drive_Joint"
+    type="continuous">
+    <origin
+      xyz="0.016886 -0.059276 0"
+      rpy="3.1416 0 3.1416" />
+    <parent
+      link="FL_Steer" />
+    <child
+      link="FL_Drive" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+  <link
+    name="Rear_Bogie">
+    <inertial>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <mass
+        value="0.1165" />
+      <inertia
+        ixx="0"
+        ixy="0"
+        ixz="0"
+        iyy="0"
+        iyz="0"
+        izz="0" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/Rear_Bogie.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.298039215686275 0.298039215686275 0.298039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/Rear_Bogie.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="Rear_Bogie_Joint"
+    type="revolute">
+    <origin
+      xyz="0 0.084 0.0247"
+      rpy="1.5708 0 -3.1416" />
+    <parent
+      link="base_link" />
+    <child
+      link="Rear_Bogie" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-0.47"
+      upper="0.47"
+      veffort="0.0"
+      velocity="1.0" />
+  </joint>
+  <link
+    name="RR_Steer">
+    <inertial>
+      <origin
+        xyz="0.0119629306207103 -0.0406897111505123 -0.000220177394379212"
+        rpy="0 0 0" />
+      <mass
+        value="0.0735" />
+      <inertia
+        ixx="3.32440932757152E-05"
+        ixy="4.64777116749984E-06"
+        ixz="-7.91976339616711E-09"
+        iyy="1.5767979830896E-05"
+        iyz="1.37753534821875E-07"
+        izz="4.04701347498814E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/RR_Steer.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.298039215686275 0.298039215686275 0.298039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/RR_Steer.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="RR_Steer_Joint"
+    type="revolute">
+    <origin
+      xyz="0.10378 -0.016586 0.078776"
+      rpy="0 0 0" />
+    <parent
+      link="Rear_Bogie" />
+    <child
+      link="RR_Steer" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-1.57"
+      upper="1.57"
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+  <link
+    name="RR_Drive">
+    <inertial>
+      <origin
+        xyz="-0.016065 -0.00015627 -0.00020897"
+        rpy="0 0 0" />
+      <mass
+        value="0.06" />
+      <inertia
+        ixx="7.9779E-05"
+        ixy="-7.7915E-09"
+        ixz="-7.1726E-08"
+        iyy="5.1523E-05"
+        iyz="3.9137E-07"
+        izz="5.1536E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/RR_Drive.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.96863 0.87843 0.6 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/RR_Drive.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="RR_Drive_Joint"
+    type="continuous">
+    <origin
+      xyz="-0.026386 -0.063776 0"
+      rpy="3.1416 0 3.1416" />
+    <parent
+      link="RR_Steer" />
+    <child
+      link="RR_Drive" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+  <link
+    name="RL_Steer">
+    <inertial>
+      <origin
+        xyz="0.012034 -0.040623 -0.00022236"
+        rpy="0 0 0" />
+      <mass
+        value="0.0735" />
+      <inertia
+        ixx="3.3788E-05"
+        ixy="4.7414E-06"
+        ixz="-8.0784E-09"
+        iyy="1.5971E-05"
+        iyz="1.4051E-07"
+        izz="4.1115E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/RL_Steer.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.298039215686275 0.298039215686275 0.298039215686275 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/RL_Steer.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="RL_Steer_Joint"
+    type="revolute">
+    <origin
+      xyz="-0.10378 -0.016586 0.078776"
+      rpy="3.1416 0 -3.1416" />
+    <parent
+      link="Rear_Bogie" />
+    <child
+      link="RL_Steer" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-1.57"
+      upper="1.57"
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+  <link
+    name="RL_Drive">
+    <inertial>
+      <origin
+        xyz="-0.016065 -0.00015627 -0.00020897"
+        rpy="0 0 0" />
+      <mass
+        value="0.06" />
+      <inertia
+        ixx="7.9779E-05"
+        ixy="-7.7915E-09"
+        ixz="-7.1726E-08"
+        iyy="5.1523E-05"
+        iyz="3.9137E-07"
+        izz="5.1536E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/RL_Drive.STL" />
+      </geometry>
+      <material
+        name="color">
+        <color
+          rgba="0.96863 0.87843 0.6 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://meshes/RL_Drive.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="RL_Drive_Joint"
+    type="continuous">
+    <origin
+      xyz="-0.026386 -0.063776 0"
+      rpy="-3.1416 0 3.1416" />
+    <parent
+      link="RL_Steer" />
+    <child
+      link="RL_Drive" />
+    <axis
+      xyz="-1 0 0" />
+    <limit
+      effort="0.27"
+      velocity="5.2" />
+  </joint>
+</robot>

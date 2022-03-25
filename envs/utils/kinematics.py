@@ -3,6 +3,7 @@ from binascii import crc32
 import numpy as np
 #from .locomotion_modes import LocomotionMode
 import math
+
 import torch
 import time
 def timeG(lin_vel,ang_vel):
@@ -111,8 +112,6 @@ def G(lin_vel, ang_vel):
     motor_velocities[:,3] = torch.where(velocity_condition3, lin_vel*frontCenterRelation, motor_velocities[:,3])
     motor_velocities[:,4] = torch.where(velocity_condition3, lin_vel*frontRelation, motor_velocities[:,4])
     motor_velocities[:,5] = torch.where(velocity_condition3, lin_vel, motor_velocities[:,5])
-
-
 
     # Speed turning clockwise moving forward/backward, velocity of frontLeft wheel = linear velocity
     frontLeft = (torch.sqrt((y_top_tensor*y_top_tensor)+((radius+x_side)*(radius+x_side)))*torch.abs(ang_vel))*torch.sign(lin_vel)

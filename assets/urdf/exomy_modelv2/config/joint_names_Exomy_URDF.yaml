@@ -1,1 +1,0 @@
-controller_joint_names: ['', 'Right_Bogie_Joint', 'CR_Steer_Joint', 'CR_Drive_Joint', 'FR_steer_Joint', 'FR_Drive_Joint', 'Left_Bogie_Joint', 'CL_Steer_Joint', 'CL_Drive_Joint', 'FL_Steer_Joint', 'FL_Drive_Joint', 'Rear_Bogie_Joint', 'RR_Steer_Joint', 'RR_Drive_Joint', 'RL_Steer_Joint', 'RL_Drive_Joint', ]

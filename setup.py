@@ -23,7 +23,7 @@ INSTALL_REQUIRES = [
 
 # Installation operation
 setup(
-    name="RL",
+    name="isaacgymenvs",
     author="NVIDIA",
     version="0.1.0",
     description="Benchmark environments for high-speed robot learning in NVIDIA IsaacGym.",

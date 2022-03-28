@@ -7,21 +7,21 @@ import xml.etree.ElementTree as ET
 import random
 from utils.torch_jit_utils import *
 from tasks.base.vec_task import VecTask
-from utils.kinematics import Rover
+#from utils.kinematics import Rover
 import torchgeometry as tgm
 from isaacgym import gymutil, gymtorch, gymapi
 from scipy.spatial.transform import Rotation as R
-
+from utils.kinematics import Ackermann
 
 class Exomy_actual(VecTask):
 
     def __init__(self, cfg, sim_device, graphics_device_id, headless):
 
         self.cfg = cfg
-        self.Kinematics = Rover()
+        #self.Kinematics = Rover()
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
-        self.cfg["env"]["numObservations"] = 9
-        self.cfg["env"]["numActions"] = 12
+        self.cfg["env"]["numObservations"] = 3
+        self.cfg["env"]["numActions"] = 2
         self.max_effort_vel = 5.2
         self.max_effort_pos = math.pi/2
         super().__init__(config=self.cfg, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless)
@@ -96,7 +96,7 @@ class Exomy_actual(VecTask):
         #    - set up gravity
         self.sim_params.gravity.x = 0
         self.sim_params.gravity.y = 0
-        self.sim_params.gravity.z = -3.721  
+        self.sim_params.gravity.z = -9.82  
         #    - call super().create_sim with device args (see docstring)
         self.sim = super().create_sim(self.device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
 
@@ -133,6 +133,7 @@ class Exomy_actual(VecTask):
         TargetRadius = 3
         TargetCordx = 0
         TargetCordy = 0
+        #print("Updating targets")
         x = TargetRadius * torch.cos(alpha) + TargetCordx
         y = TargetRadius * torch.sin(alpha) + TargetCordy
         self.target_root_positions[env_ids, 0] = x
@@ -272,7 +273,6 @@ class Exomy_actual(VecTask):
 
         RQuat = torch.cuda.FloatTensor(r)
 
-
         #Rot = torch.rand(num_resets, 3, device=self.device) * 2 * math.pi
         #Rot[..., 0] = 0
         #Rot[..., 1] = math.pi
@@ -304,7 +304,7 @@ class Exomy_actual(VecTask):
 
         self.reset_buf[env_ids] = 0
         self.progress_buf[env_ids] = 0
-
+        
         return torch.unique(torch.cat([target_actor_indices, actor_indices]))
 
         #Used to reset a single environment
@@ -314,7 +314,7 @@ class Exomy_actual(VecTask):
 
     def pre_physics_step(self, actions):
         # 
-        set_target_ids = (self.progress_buf % 1000 == 0).nonzero(as_tuple=False).squeeze(-1)
+        #set_target_ids = (self.progress_buf % 1000 == 0).nonzero(as_tuple=False).squeeze(-1)
        # if  torch.any(self.progress_buf % 1000 == 0):
             #print(self.marker_positions)
         target_actor_indices = torch.tensor([], device=self.device, dtype=torch.int32)
@@ -322,6 +322,7 @@ class Exomy_actual(VecTask):
             #target_actor_indices = self.set_targets(set_target_ids)
     
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
+        #print(len(reset_env_ids))
         #print(self.reset_buf)
         actor_indices = torch.tensor([], device=self.device, dtype=torch.int32)
         #print(reset_env_ids.size())
@@ -345,40 +346,55 @@ class Exomy_actual(VecTask):
         #print(np.shape(_actions))
         # print(actions.size())
 
-        DRV_LF_joint_dof_handle = self.gym.find_actor_dof_handle(self.envs[0], self.exomy_handles[0], "DRV_LF_joint")
+        #DRV_LF_joint_dof_handle = self.gym.find_actor_dof_handle(self.envs[0], self.exomy_handles[0], "DRV_LF_joint")
         #max = 100
-        max = 2
+        #max = 2
         #actions_tensor = actions.to(self.device).squeeze() * 400
         #pos, vel = self.Kinematics.Get_AckermannValues(1,1)
-        actions_tensor[1::15]=(_actions[:,0]) * self.max_effort_pos  #1  #LF POS
-        actions_tensor[2::15]=(_actions[:,1]) * self.max_effort_vel #2  #LF DRIVE
-        actions_tensor[3::15]=(_actions[:,2]) * self.max_effort_pos #3  #LM POS
-        actions_tensor[4::15]=(_actions[:,3]) * self.max_effort_vel #4  #LM DRIVE
-        actions_tensor[6::15]=(_actions[:,4]) * self.max_effort_pos #6  #LR POS
-        actions_tensor[7::15]=(_actions[:,5]) * self.max_effort_vel #7  #LR DRIVE
-        actions_tensor[8::15]=(_actions[:,6]) * self.max_effort_pos #8  #RR POS
-        actions_tensor[9::15]=(_actions[:,7]) * self.max_effort_vel #9  #RR DRIVE
-        actions_tensor[11::15]=(_actions[:,8]) * self.max_effort_pos #11 #RF POS 
-        actions_tensor[12::15]= (_actions[:,9]) * self.max_effort_vel #12 #RF DRIVE
-        actions_tensor[13::15]=(_actions[:,10]) * self.max_effort_pos #13 #RM POS
-        actions_tensor[14::15]=(_actions[:,11]) * self.max_effort_vel #14 #RM DRIVE
-        #print(_actions[0, 0:12])
+        _actions[:,0] = _actions[:,0] * 3
+        _actions[:,1] = _actions[:,1] * 3
+        steering_angles, motor_velocities = Ackermann(_actions[:,0], _actions[:,1])
+        # actions_tensor[1::15]=(_actions[:,0]) * self.max_effort_pos  #1  #LF POS
+        # actions_tensor[2::15]=(_actions[:,1]) * self.max_effort_vel #2  #LF DRIVE
+        # actions_tensor[3::15]=(_actions[:,2]) * self.max_effort_pos #3  #LM POS
+        # actions_tensor[4::15]=(_actions[:,3]) * self.max_effort_vel #4  #LM DRIVE
+        # actions_tensor[6::15]=(_actions[:,4]) * self.max_effort_pos #6  #LR POS
+        # actions_tensor[7::15]=(_actions[:,5]) * self.max_effort_vel #7  #LR DRIVE
+        # actions_tensor[8::15]=(_actions[:,6]) * self.max_effort_pos #8  #RR POS
+        # actions_tensor[9::15]=(_actions[:,7]) * self.max_effort_vel #9  #RR DRIVE
+        # actions_tensor[11::15]=(_actions[:,8]) * self.max_effort_pos #11 #RF POS 
+        # actions_tensor[12::15]= (_actions[:,9]) * self.max_effort_vel #12 #RF DRIVE
+        # actions_tensor[13::15]=(_actions[:,10]) * self.max_effort_pos #13 #RM POS
+        # actions_tensor[14::15]=(_actions[:,11]) * self.max_effort_vel #14 #RM DRIVE
+        actions_tensor[1::15]=(steering_angles[:,2])   #1  #ML POS
+        actions_tensor[2::15]=(motor_velocities[:,2])  #2  #ML DRIVE
+        actions_tensor[3::15]=(steering_angles[:,0])   #3   #FL POS
+        actions_tensor[4::15]=(motor_velocities[:,0])  #4  #FL DRIVE
+        actions_tensor[6::15]=(steering_angles[:,4])   #6  #RL POS
+        actions_tensor[7::15]=(motor_velocities[:,4])  #7  #RL DRIVE
+        actions_tensor[8::15]=(steering_angles[:,5])   #8  #RR POS
+        actions_tensor[9::15]=(motor_velocities[:,5])  #9  #RR DRIVE
+        actions_tensor[11::15]=(steering_angles[:,3])  #11 #MR POS  
+        actions_tensor[12::15]= (motor_velocities[:,3])#12 #MR DRIVE
+        actions_tensor[13::15]=(steering_angles[:,1])  #13 #FR POS
+        actions_tensor[14::15]=(motor_velocities[:,1]) #14 #FR DRIVE
+        #print(motor_velocities[:,0])
 
 
 
 
-        # actions_tensor[1::15] = 1 #1  #ML POS
-        # actions_tensor[2::15] = math.pi #2  #ML DRIVE
-        # actions_tensor[3::15] = 1 #3  #FL POS
-        # actions_tensor[4::15] = math.pi #4  #FL DRIVE
-        # actions_tensor[6::15] = 1 #6  #RL POS
-        # actions_tensor[7::15] = math.pi #7  #RL DRIVE
-        # actions_tensor[8::15] = 1 #8  #RR POS
-        # actions_tensor[9::15] = math.pi #9  #RR DRIVE
-        # actions_tensor[11::15] = 1 #11 #MR POS 
-        # actions_tensor[12::15] = math.pi #12 #MR DRIVE
-        # actions_tensor[13::15] = 1 #13 #FR POS
-        # actions_tensor[14::15] = math.pi #14 #FR DRIVE
+        # actions_tensor[1::15] = -math.pi/4 #1  #ML POS
+        # actions_tensor[2::15] = 0 #2  #ML DRIVE
+        # actions_tensor[3::15] = -math.pi/4 #3  #FL POS
+        # actions_tensor[4::15] = 0 #4  #FL DRIVE
+        # actions_tensor[6::15] = -math.pi/4 #6  #RL POS
+        # actions_tensor[7::15] = 0 #7  #RL DRIVE
+        # actions_tensor[8::15] = -math.pi/4 #8  #RR POS
+        # actions_tensor[9::15] = 0 #9  #RR DRIVE
+        # actions_tensor[11::15] = -math.pi/4 #11 #MR POS 
+        # actions_tensor[12::15] = 0 #12 #MR DRIVE
+        # actions_tensor[13::15] = -math.pi/4 #13 #FR POS
+        # actions_tensor[14::15] = 0 #14 #FR DRIVE
         # speed =10
         # actions_tensor[0] = 100 #BOTH REAR DRIVE        # actions_tensor[3] = 0
         # actions_tensor[2] = speed 
@@ -399,7 +415,7 @@ class Exomy_actual(VecTask):
         #    - e.g. compute reward, compute observations
         
         self.progress_buf += 1
-
+        #print(torch.max(self.progress_buf))
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
         root_quat = R.from_quat(self.root_quats.cpu())
@@ -414,10 +430,10 @@ class Exomy_actual(VecTask):
         self.compute_rewards()
 
     def compute_observations(self):
-        self.obs_buf[..., 0:2] = (self.target_root_positions[..., 0:2] - self.root_positions[..., 0:2])
-        self.obs_buf[..., 2] = (self.root_euler[..., 2]  - (math.pi/2))
-        self.obs_buf[..., 3:6] = self.root_linvels
-        self.obs_buf[..., 6:9] = self.root_angvels
+        self.obs_buf[..., 0:2] = (self.target_root_positions[..., 0:2] - self.root_positions[..., 0:2]) / 4
+        self.obs_buf[..., 2] = (self.root_euler[..., 2]  - (math.pi/2)) + (math.pi / (2 * math.pi))
+        #self.obs_buf[..., 3:6] = self.root_linvels
+        #self.obs_buf[..., 6:9] = self.root_angvels
         #print(self.obs_buf[0, 2:5])
         #print(tgm.quaternion_to_angle_axis(self.root_quats)[0])
         # self.obs_buf[..., 0:3] = (self.target_root_positions - self.root_positions) / 3
@@ -466,23 +482,27 @@ def compute_exomy_reward(root_positions, target_root_positions,
 
 
     
-    pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.0001 * progress_buf) + (0.1 * heading_diff))
-    if math.isnan(torch.min(heading_diff)):
-        print(dot[torch.argmax(heading_diff)])
-        print(heading_diff[torch.argmax(heading_diff)])
-        print(target_vector[torch.argmax(heading_diff)])
-        print(root_euler[torch.argmax(heading_diff)])
-        print(root_positions[torch.argmax(heading_diff)])
-        print(target_root_positions[torch.argmax(heading_diff)])
+    pos_reward = 1.0 / (1.0 + target_dist * target_dist)
+    #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.0001 * progress_buf) + (0.5 * heading_diff))
+    # if math.isnan(torch.min(heading_diff)):
+    #     print(dot[torch.argmax(heading_diff)])
+    #     print(heading_diff[torch.argmax(heading_diff)])
+    #     print(target_vector[torch.argmax(heading_diff)])
+    #     print(root_euler[torch.argmax(heading_diff)])
+    #     print(root_positions[torch.argmax(heading_diff)])
+    #     print(target_root_positions[torch.argmax(heading_diff)])
         
 
 
     reward = pos_reward
+    #print(reward[0:10])
     #print((torch.max(reward), torch.argmax(reward)))
 
     ones = torch.ones_like(reset_buf)
     die = torch.zeros_like(reset_buf)
-    # resets due to episode length
+    # resets due to episode length'
     reset = torch.where(progress_buf >= max_episode_length - 1, ones, die)
-    reset = torch.where(target_dist >= 4, ones, die)
+    reset = torch.where(target_dist >= 4, ones, reset)
+
+    
     return reward, reset        

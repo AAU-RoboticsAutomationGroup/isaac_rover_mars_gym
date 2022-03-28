@@ -1,5 +1,6 @@
 
 import math
+from cmath import inf
 import numpy as np
 import os
 import torch
@@ -7,9 +8,10 @@ import xml.etree.ElementTree as ET
 
 from utils.torch_jit_utils import *
 from tasks.base.vec_task import VecTask
-from utils.kinematics import Rover
+#from utils.kinematics import Rover
 
 from isaacgym import gymutil, gymtorch, gymapi
+import open3d as o3d
 
 
 class Exomy(VecTask):
@@ -17,7 +19,7 @@ class Exomy(VecTask):
     def __init__(self, cfg, sim_device, graphics_device_id, headless):
 
         self.cfg = cfg
-        self.Kinematics = Rover()
+        #self.Kinematics = Rover()
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
         self.cfg["env"]["numObservations"] = 13
         self.cfg["env"]["numActions"] = 12
@@ -83,6 +85,8 @@ class Exomy(VecTask):
         cam_pos = gymapi.Vec3(-1.0, -0.6, 0.8)
         cam_target = gymapi.Vec3(1.0, 1.0, 0.15)
         self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
+
+        self.frame_count = 0 #used for pointcloud
 
     def create_sim(self):
         # implement sim set up and environment creation here
@@ -160,7 +164,7 @@ class Exomy(VecTask):
         # use default convex decomposition params
         asset_options.vhacd_enabled = False
 
-        print("Loading asset '%s' from '%s'" % (exomy_asset_file, asset_root))
+        #print("Loading asset '%s' from '%s'" % (exomy_asset_file, asset_root))
         exomy_asset = self.gym.load_asset(self.sim, asset_root, exomy_asset_file, asset_options)
         self.num_dof = self.gym.get_asset_dof_count(exomy_asset)
         #print(self.num_dof)
@@ -213,8 +217,12 @@ class Exomy(VecTask):
         self.exomy_handles = []
         self.envs = []
 
-        #Create marker
+        self.camera_handles = []
+        self.cameraheight = 240
+        self.camerawidth = 424
         
+        #################################################
+        #Create marker
         default_pose = gymapi.Transform()
         default_pose.p.z = 0.0
         default_pose.p.x = 0.1        
@@ -249,6 +257,23 @@ class Exomy(VecTask):
             # Spawn marker
             marker_handle = self.gym.create_actor(env0, marker_asset, default_pose, "marker", i, 1, 1)
             self.gym.set_rigid_body_color(env0, marker_handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, gymapi.Vec3(1, 0, 0))
+        
+            #################################################
+            # Create camera
+            camera_props = gymapi.CameraProperties()
+            camera_props.width = self.camerawidth
+            camera_props.height = self.cameraheight
+            camera_props.near_plane = 0.16
+            camera_props.far_plane = 3
+            camera_handle = self.gym.create_camera_sensor(env0, camera_props)
+            self.camera_handles.append(camera_handle)
+                # Attatch camera to body
+            body_handle = self.gym.get_actor_rigid_body_handle(env0, exomy0_handle, 18)
+            local_transform = gymapi.Transform()
+            local_transform.p = gymapi.Vec3(0,0,0.01) #Units in meters
+                                                            # tilt,             yaw,                pan
+            local_transform.r = gymapi.Quat.from_euler_zyx(np.radians(180.0), np.radians(-90.0), np.radians(0.0))
+            self.gym.attach_camera_to_body(camera_handle, env0, body_handle, local_transform, gymapi.FOLLOW_TRANSFORM)
 
     def reset_idx(self, env_ids):
         # set rotor speeds
@@ -368,6 +393,50 @@ class Exomy(VecTask):
         self.compute_observations()
         self.compute_rewards()
 
+                # Get Image
+        environment = self.envs[0]
+        camera = self.camera_handles[0]
+
+        points = []
+        pcd = o3d.geometry.PointCloud()
+
+        if self.frame_count == 4: # Don't do this every frame, demanding
+            self.gym.render_all_camera_sensors(self.sim)
+
+            depth_buffer = self.gym.get_camera_image(self.sim, environment, camera, gymapi.IMAGE_DEPTH)
+            self.gym.get_camera_image(self.sim, environment, camera, gymapi.IMAGE_COLOR)
+            rgb_filename1 = "color_cam.png"
+            rgb_filename2 = "depth_cam.png"
+            self.gym.write_camera_image_to_file(self.sim, environment, camera, gymapi.IMAGE_COLOR, rgb_filename1)
+            self.gym.write_camera_image_to_file(self.sim, environment, camera, gymapi.IMAGE_DEPTH, rgb_filename2)
+        
+            # Get the camera view matrix and invert it to transform points from camera to world space
+            vinv = np.linalg.inv(np.matrix(self.gym.get_camera_view_matrix(self.sim, environment, camera)))
+
+            # Get the camera projection matrix and get the necessary scaling
+            # coefficients for deprojection
+            proj = self.gym.get_camera_proj_matrix(self.sim, environment, camera)
+            fu = 2/proj[0, 0]
+            fv = 2/proj[1, 1]
+            
+            centerU = self.camerawidth/2
+            centerV = self.cameraheight/2
+
+            for i in range(self.camerawidth): 
+                for j in range(self.cameraheight):
+                    if depth_buffer[j, i] != -inf: # ignore empty space 
+                        u = -(i-centerU)/(self.camerawidth)  # image-space coordinate
+                        v = (j-centerV)/(self.cameraheight)  # image-space coordinate
+                        d = depth_buffer[j, i]  # depth buffer value
+                        X2 = [d*fu*u, d*fv*v, d, 1]  # deprojection vector
+                        p2 = X2*vinv  # Inverse camera view to get world coordinates
+                        points.append([p2[0, 0], p2[0, 1], p2[0, 2]])
+            self.frame_count = 0
+            pcd.points = o3d.utility.Vector3dVector(np.array(points))
+            #o3d.visualization.draw_geometries([pcd]) #Print point cloud
+           
+        self.frame_count = self.frame_count +1
+
     def compute_observations(self):
         self.obs_buf[..., 0:3] = (self.target_root_positions - self.root_positions) / 3
         self.obs_buf[..., 3:7] = self.root_quats
@@ -390,7 +459,7 @@ def compute_exomy_reward(root_positions, target_root_positions, reset_buf, progr
     pos_reward = 1.0 / (1.0 + target_dist * target_dist)
 
     reward = pos_reward
-    print(reward[0:5])
+    #print(reward[0:5])
     ones = torch.ones_like(reset_buf)
     die = torch.zeros_like(reset_buf)
     # resets due to episode length

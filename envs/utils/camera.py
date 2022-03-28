@@ -1,5 +1,6 @@
 from isaacgym import gymutil, gymtorch, gymapi
 import numpy as np
+import torch
 
 class camera:
     '''
@@ -10,31 +11,47 @@ class camera:
     def __init__(self):
         # Camera properties
         self.camera_props = gymapi.CameraProperties()
-        self.camera_props.width = 424     #Pixels width
-        self.camera_props.height = 240    #Pixels height
+        self.camera_props.width = 20     #Pixels width
+        self.camera_props.height = 20    #Pixels height
         self.camera_props.near_plane = 0.16
         self.camera_props.far_plane = 3
+        self.camera_props.enable_tensors = True
+        
         #Placement of camera
         self.local_transform = gymapi.Transform()
         self.local_transform.p = gymapi.Vec3(0,0,0.01) #Units in meters, (X, Y, Z) - X-up/down, Y-Side, Z-forwards/backwards
         self.local_transform.r = gymapi.Quat.from_euler_zyx(np.radians(180.0), np.radians(-119.0), np.radians(0.0))
+
+        #Data
         self.camera_handles = []
+        #Tensors that contain Depth data
+        self.torch_tensors = torch.tensor([], device = "cuda:0")
         print("Camera class initialized!")
 
-
     
-    def add_camera(self, env, gym, exo_handle):
+    def add_camera(self, env, gym, exo_handle, sim):
         '''
         Add camera to an ExoMy instance using an ExoMy_handle
         '''
         # Create camera sensor
         camera_handle = gym.create_camera_sensor(env, self.camera_props)
-        # Add handle to camera_handles
+        # Append handle to camera_handles
         self.camera_handles.append(camera_handle)
         # Get body handle from robot
         body_handle = gym.get_actor_rigid_body_handle(env, exo_handle, 18)
         # Attatch camera to body using handles
         gym.attach_camera_to_body(camera_handle, env, body_handle, self.local_transform, gymapi.FOLLOW_TRANSFORM)
+
+        #Retrieve and store the tensor structure        
+        camera_tensor = gym.get_camera_image_gpu_tensor(sim, env, camera_handle, gymapi.IMAGE_DEPTH)
+        torch_camera_tensor = gymtorch.wrap_tensor(camera_tensor)
+        # Convert to torch tensor
+        tensor_data = torch.tensor(torch_camera_tensor, device = "cuda:0")
+        # Resize from 20x20 -> 1x400
+        length = self.camera_props.width * self.camera_props.height
+        tensor_data.resize_(1, length)
+        #Append to torch_tensors
+        self.torch_tensors = torch.cat((self.torch_tensors, tensor_data), 0)
 
     def create_static_sphere(self, gym, sim, env, exo_handle, collision_it):
         '''

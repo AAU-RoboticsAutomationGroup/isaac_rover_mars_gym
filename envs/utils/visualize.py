@@ -15,7 +15,10 @@ class visualize:
         Cam_handle and env are single handles! Get environment nr. by [X].
         Remember to render cameras before visualisation.
         '''
-        gym.write_camera_image_to_file(sim, env, cam_handle, gymapi.IMAGE_COLOR, filename)
+        gym.write_camera_image_to_file(sim, env, cam_handle, imagetype, filename)
         im = cv2.imread(filename)
         cv2.imshow('Sensor',im)
         cv2.waitKey(1)
+
+    def show_pointcloud():
+        pass

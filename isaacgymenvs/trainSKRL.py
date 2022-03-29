@@ -11,44 +11,9 @@ from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.trainers.torch import SequentialTrainer
 from skrl.envs.torch import wrap_env
 from skrl.envs.torch import load_isaacgym_env_preview2, load_isaacgym_env_preview3
-
-
-# Define the models (stochastic and deterministic models) for the agent using helper classes.
-# - Policy: takes as input the environment's observation/state and returns an action
-# - Value: takes the state as input and provides a value to guide the policy
-class Policy(GaussianModel):
-    def __init__(self, observation_space, action_space, device, clip_actions=False,
-                 clip_log_std=True, min_log_std=-20, max_log_std=2):
-        super().__init__(observation_space, action_space, device, clip_actions,
-                         clip_log_std, min_log_std, max_log_std)
-
-        self.net = nn.Sequential(nn.Linear(self.num_observations, 256),
-                                 nn.ELU(),
-                                 nn.Linear(256, 128),
-                                 nn.ELU(),
-                                 nn.Linear(128, 64),
-                                 nn.ELU(),
-                                 nn.Linear(64, self.num_actions))
-        self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
-
-    def compute(self, states, taken_actions):
-        return self.net(states), self.log_std_parameter
-
-class Value(DeterministicModel):
-    def __init__(self, observation_space, action_space, device, clip_actions=False):
-        super().__init__(observation_space, action_space, device, clip_actions)
-
-        self.net = nn.Sequential(nn.Linear(self.num_observations, 256),
-                                 nn.ELU(),
-                                 nn.Linear(256, 128),
-                                 nn.ELU(),
-                                 nn.Linear(128, 64),
-                                 nn.ELU(),
-                                 nn.Linear(64, 1))
-
-    def compute(self, states, taken_actions):
-        return self.net(states)
-
+from utils.model import Policy, Value
+from gym.spaces import Box
+from skrl.utils.model_instantiators import deterministic_model, Shape
 
 # Load and wrap the Isaac Gym environment.
 # The following lines are intended to support both versions (preview 2 and 3). 
@@ -68,8 +33,8 @@ memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=device)
 # Instantiate the agent's models (function approximators).
 # PPO requires 2 models, visit its documentation for more details
 # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#spaces-and-models
-models_ppo = {"policy": Policy(env.observation_space, env.action_space, device),
-              "value": Value(env.observation_space, env.action_space, device)}
+models_ppo = {"policy": Policy(env.observation_space, env.action_space, features=[512,256,128], activation_function="elu"),
+              "value": Value(env.observation_space, env.action_space, features=[512,256,128], activation_function="elu")}
 
 # Initialize the models' parameters (weights and biases) using a Gaussian distribution
 for model in models_ppo.values():
@@ -109,7 +74,7 @@ agent = PPO(models=models_ppo,
 
 
 # Configure and instantiate the RL trainer
-cfg_trainer = {"timesteps": 60000, "headless": True}
+cfg_trainer = {"timesteps": 60000, "headlesAs": True}
 trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
 # start training

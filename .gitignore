@@ -1,5 +1,6 @@
 envs/runs/
 isaacgymenvs/runs/
 isaacgymenvs/isaacgymenvs.egg-info/
-#isaacgymenvs.egg-info/
+isaacgymenvs.egg-info/
+RL.egg-info/
 *.pyc

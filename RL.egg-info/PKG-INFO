@@ -2,7 +2,10 @@ Metadata-Version: 2.1
 Name: RL
 Version: 0.1.0
 Summary: Benchmark environments for high-speed robot learning in NVIDIA IsaacGym.
+<<<<<<< HEAD
 Home-page: UNKNOWN
+=======
+>>>>>>> 66d012c8aed2c5b978a9f1c0e00997419846b989
 Author: NVIDIA
 License: UNKNOWN
 Keywords: robotics,rl

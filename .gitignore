@@ -1,3 +1,4 @@
 envs/runs/
 isaacgymenvs/runs/
+isaacgymenvs/isaacgymenvs.egg-info/
 *.pyc

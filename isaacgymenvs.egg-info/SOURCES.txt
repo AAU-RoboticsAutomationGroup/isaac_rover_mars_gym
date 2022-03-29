@@ -1,8 +1,0 @@
-README.md
-setup.py
-isaacgymenvs.egg-info/PKG-INFO
-isaacgymenvs.egg-info/SOURCES.txt
-isaacgymenvs.egg-info/dependency_links.txt
-isaacgymenvs.egg-info/not-zip-safe
-isaacgymenvs.egg-info/requires.txt
-isaacgymenvs.egg-info/top_level.txt

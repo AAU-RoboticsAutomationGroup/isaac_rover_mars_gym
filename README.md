@@ -57,8 +57,12 @@ fi
 6. Insert the follwing code at the bottom of the file and save.
 
 ```
-RUN git clone https://github.com/ExoMyRL/isaac_rover.git /home/gymuser/isaac_rover
+RUN git clone https://github.com/abmoRobotics/isaac_rover /home/gymuser/isaac_rover
+RUN pip3 install -e /home/gymuser/isaac_rover/.
+RUN git clone https://github.com/Toni-SM/skrl.git /home/gymuser/skrl
+RUN pip3 install -e /home/gymuser/skrl/.
 WORKDIR /home/gymuser/isaac_rover
+
 ```
 7. sudo groupadd docker
 8. sudo gpasswd -a $USER docker

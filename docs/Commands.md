@@ -22,8 +22,9 @@ To run the standard exomy environment:
 To run our exomy environment:
 1. (In the active isaacgym container) ***cd RL/***
 2. ***python train.py task=Exomy***
-
-
+- **IF ANY PACKAGE IS FAILING TO IMPORT THAT WE HAVE DOWNLOADED***
+1. GO INTO CORRESPONDING FOLDER AT DO:
+2. **pip install -e .**
 To run Issac gym examples, clone them to docker.
 Upon execution of train.py, if error: ModuleNotFoundError: No module named *hydra*
 1. **cd IsaacGymEnvs**

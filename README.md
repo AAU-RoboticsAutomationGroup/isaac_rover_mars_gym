@@ -64,9 +64,9 @@ RUN pip3 install -e /home/gymuser/skrl/.
 WORKDIR /home/gymuser/isaac_rover
 
 ```
-#7. sudo groupadd docker
+<!---#7. sudo groupadd docker
 #8. sudo gpasswd -a $USER docker
-#9. restart PC
+#9. restart PC-->
 7. bash docker/build.sh
 8. docker run -it -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY --network=host --gpus=all --name=isaacgym_exomy_container isaacgym /bin/bash
 #11. bash docker/run.sh DISPLAYPORT

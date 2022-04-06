@@ -64,7 +64,7 @@ class Value(DeterministicModel):
 
 
 class DeterministicPolicy(DeterministicModel):
-    def __init__(self, observation_space, action_space, device = "cuda:0", features=[512,256,128], activation_function="elu",clip_actions=False, clip_log_std = True, min_log_std= -20.0, max_log_std = 2.0):
+    def __init__(self, observation_space, action_space, device = "cuda:0", features=[512,256,128], activation_function="elu",clip_actions=False):
         super().__init__(observation_space, action_space, device, clip_actions)
 
         self.network = nn.ModuleList()
@@ -76,15 +76,36 @@ class DeterministicPolicy(DeterministicModel):
             in_channels = feature
 
         self.network.append(nn.Linear(in_channels,action_space.shape[0]))
-        self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
 
     def compute(self, states, taken_actions):
         x = states
         for layer in self.network:
             x = layer(x)
-        return x, self.log_std_parameter
+        return x
 
+class DeterministicValue(DeterministicModel):
+    def __init__(self, observation_space, action_space, device = "cuda:0", features=[512,256,128], activation_function="elu",clip_actions=False):
+        super().__init__(observation_space, action_space, device, clip_actions)
+
+        self.network = nn.ModuleList()
+        
+
+        in_channels = observation_space.shape[0]
+        for feature in features:
+            self.network.append(Conv(in_channels, feature, activation_function))
+            in_channels = feature
+
+        self.network.append(nn.Linear(in_channels,1))
+
+
+    def compute(self, states, taken_actions):
+        x = states
+        for layer in self.network:
+            x = layer(x)
+        return x
+
+#REMOVE LATER
 class DeterministicActor(DeterministicModel):
     def __init__(self, observation_space, action_space, device, clip_actions = False):
         super().__init__(observation_space, action_space, device, clip_actions)
@@ -98,6 +119,7 @@ class DeterministicActor(DeterministicModel):
         x = nn.functional.elu(self.linear_layer_2(x))
         return torch.tanh(self.action_layer(x))
 
+#REMOVE LATER
 class Critic(DeterministicModel):
     def __init__(self, observation_space, action_space, device, clip_actions = False):
         super().__init__(observation_space, action_space, device, clip_actions)

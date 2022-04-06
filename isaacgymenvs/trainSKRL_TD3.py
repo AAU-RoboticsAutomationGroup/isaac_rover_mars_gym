@@ -33,8 +33,8 @@ memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=device)
 # Instantiate the agent's models (function approximators).
 # PPO requires 2 models, visit its documentation for more details
 # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#spaces-and-models
-models_ppo = {"policy": Policy(env.observation_space, env.action_space, features=[512,256,128], activation_function="elu"),
-              "value": Value(env.observation_space, env.action_space, features=[512,256,128], activation_function="elu")}
+models_ppo = {"policy": Policy(env.observation_space, env.action_space, features=[256,160,128], activation_function="relu"),
+              "value": Value(env.observation_space, env.action_space, features=[256,160,128], activation_function="relu")}
 
 # Initialize the models' parameters (weights and biases) using a Gaussian distribution
 for model in models_ppo.values():
@@ -74,7 +74,7 @@ agent = PPO(models=models_ppo,
 
 
 # Configure and instantiate the RL trainer
-cfg_trainer = {"timesteps": 60000, "headlesAs": True}
+cfg_trainer = {"timesteps": 6000000, "headlesAs": True}
 trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
 # start training

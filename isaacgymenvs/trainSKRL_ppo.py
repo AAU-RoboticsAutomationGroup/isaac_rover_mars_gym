@@ -7,12 +7,11 @@ import torch.nn.functional as F
 # Import the skrl components to build the RL system
 from skrl.models.torch import GaussianModel, DeterministicModel
 from skrl.memories.torch import RandomMemory
-from skrl.agents.torch.td3 import TD3, TD3_DEFAULT_CONFIG
+from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.trainers.torch import SequentialTrainer
-from skrl.noises.torch import GaussianNoise, OrnsteinUhlenbeckNoise
 from skrl.envs.torch import wrap_env
 from skrl.envs.torch import load_isaacgym_env_preview2, load_isaacgym_env_preview3
-from utils.model import DeterministicActor, Critic, DeterministicPolicy, DeterministicValue
+from utils.model import Policy, Value
 from gym.spaces import Box
 from skrl.utils.model_instantiators import deterministic_model, Shape
 
@@ -34,44 +33,48 @@ memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=device)
 # Instantiate the agent's models (function approximators).
 # PPO requires 2 models, visit its documentation for more details
 # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#spaces-and-models
-models_td3 = {"policy": DeterministicPolicy(env.observation_space, env.action_space, device, clip_actions=True),
-              "target_policy": DeterministicPolicy(env.observation_space, env.action_space, device, clip_actions=True),
-              "critic_1": DeterministicValue(env.observation_space, env.action_space, device),
-              "critic_2": DeterministicValue(env.observation_space, env.action_space, device),
-              "target_critic_1": DeterministicValue(env.observation_space, env.action_space, device),
-              "target_critic_2": DeterministicValue(env.observation_space, env.action_space, device)}
+models_ppo = {"policy": Policy(env.observation_space, env.action_space, features=[256,160,128], activation_function="relu"),
+              "value": Value(env.observation_space, env.action_space, features=[256,160,128], activation_function="relu")}
 
 # Initialize the models' parameters (weights and biases) using a Gaussian distribution
-for model in models_td3.values():
+for model in models_ppo.values():
     model.init_parameters(method_name="normal_", mean=0.0, std=0.1)   
 
 
 # Configure and instantiate the agent.
 # Only modify some of the default configuration, visit its documentation to see all the options
 # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#configuration-and-hyperparameters
-cfg_td3 = TD3_DEFAULT_CONFIG.copy()
-cfg_td3["exploration"]["noise"] = GaussianNoise(0, 0.2, device=device)
-cfg_td3["smooth_regularization_noise"] = GaussianNoise(0, 0.1, device=device)
-cfg_td3["smooth_regularization_clip"] = 0.1
-cfg_td3["gradient_steps"] = 1
-cfg_td3["batch_size"] = 512
-cfg_td3["random_timesteps"] = 0
-cfg_td3["learning_starts"] = 0
-# logging to TensorBoard and write checkpoints each 25 and 1000 timesteps respectively
-cfg_td3["experiment"]["write_interval"] = 25
-cfg_td3["experiment"]["checkpoint_interval"] = 1000
+cfg_ppo = PPO_DEFAULT_CONFIG.copy()
+cfg_ppo["rollouts"] = 16
+cfg_ppo["learning_epochs"] = 4
+cfg_ppo["mini_batches"] = 2
+cfg_ppo["discount_factor"] = 0.99
+cfg_ppo["lambda"] = 0.99
+cfg_ppo["policy_learning_rate"] = 0.0003
+cfg_ppo["value_learning_rate"] = 0.0003
+cfg_ppo["random_timesteps"] = 0
+cfg_ppo["learning_starts"] = 0
+cfg_ppo["grad_norm_clip"] = 1.0
+cfg_ppo["ratio_clip"] = 0.2
+cfg_ppo["value_clip"] = 0.2
+cfg_ppo["clip_predicted_values"] = True
+cfg_ppo["entropy_loss_scale"] = 0.0
+cfg_ppo["value_loss_scale"] = 1.0
+cfg_ppo["kl_threshold"] = 0.008
+# logging to TensorBoard and write checkpoints each 120 and 3000 timesteps respectively
+cfg_ppo["experiment"]["write_interval"] = 120
+cfg_ppo["experiment"]["checkpoint_interval"] = 3000
 
-
-agent = TD3(models=models_td3,
+agent = PPO(models=models_ppo,
             memory=memory, 
-            cfg=cfg_td3, 
+            cfg=cfg_ppo, 
             observation_space=env.observation_space, 
             action_space=env.action_space,
             device=device)
 
 
 # Configure and instantiate the RL trainer
-cfg_trainer = {"timesteps": 1000000, "headless": True}
+cfg_trainer = {"timesteps": 6000000, "headlesAs": True}
 trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
 # start training

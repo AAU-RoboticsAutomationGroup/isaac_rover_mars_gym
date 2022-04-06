@@ -112,7 +112,7 @@ class DeterministicValueWithTakenActions(DeterministicModel):
         self.network = nn.ModuleList()
         
 
-        in_channels = observation_space.shape[0]
+        in_channels = observation_space.shape[0]+self.num_actions
         for feature in features:
             self.network.append(Conv(in_channels, feature, activation_function))
             in_channels = feature

@@ -105,6 +105,27 @@ class DeterministicValue(DeterministicModel):
             x = layer(x)
         return x
 
+class DeterministicValueWithTakenActions(DeterministicModel):
+    def __init__(self, observation_space, action_space, device = "cuda:0", features=[512,256,128], activation_function="elu",clip_actions=False):
+        super().__init__(observation_space, action_space, device, clip_actions)
+
+        self.network = nn.ModuleList()
+        
+
+        in_channels = observation_space.shape[0]
+        for feature in features:
+            self.network.append(Conv(in_channels, feature, activation_function))
+            in_channels = feature
+
+        self.network.append(nn.Linear(in_channels,1))
+
+
+    def compute(self, states, taken_actions):
+        x = torch.cat([states, taken_actions], dim=1)
+        for layer in self.network:
+            x = layer(x)
+        return x
+
 #REMOVE LATER
 class DeterministicActor(DeterministicModel):
     def __init__(self, observation_space, action_space, device, clip_actions = False):

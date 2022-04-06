@@ -85,23 +85,49 @@ class DeterministicPolicy(DeterministicModel):
             x = layer(x)
         return x, self.log_std_parameter
 
+class DeterministicActor(DeterministicModel):
+    def __init__(self, observation_space, action_space, device, clip_actions = False):
+        super().__init__(observation_space, action_space, device, clip_actions)
+        in_channels = observation_space.shape[0]
+        self.linear_layer_1 = nn.Linear(in_channels, 32)
+        self.linear_layer_2 = nn.Linear(32, 32)
+        self.action_layer = nn.Linear(32, self.num_actions)
+
+    def compute(self, states, taken_actions):
+        x = nn.functional.elu(self.linear_layer_1(states))
+        x = nn.functional.elu(self.linear_layer_2(x))
+        return torch.tanh(self.action_layer(x))
+
+class Critic(DeterministicModel):
+    def __init__(self, observation_space, action_space, device, clip_actions = False):
+        super().__init__(observation_space, action_space, device, clip_actions)
+        in_channels = observation_space.shape[0]
+        self.net = nn.Sequential(nn.Linear(in_channels + self.num_actions, 32),
+                                 nn.ELU(),
+                                 nn.Linear(32, 32),
+                                 nn.ELU(),
+                                 nn.Linear(32, 1))
+
+    def compute(self, states, taken_actions):
+        return self.net(torch.cat([states, taken_actions], dim=1))        
 
 if __name__ == "__main__":
-    observation_space = Box(-torch.inf,torch.inf,(3,))
-    action_space = Box(-1.0,1.0,(2,))
-    policy = Policy(observation_space,action_space, features=[512,256,128], activation_function="elu")
-    value = Value(observation_space,action_space, features=[512,256,128], activation_function="elu")
-    policy2 = deterministic_model(observation_space=env.observation_space, 
-                                action_space=env.action_space,
-                                device=device,
-                                clip_actions=False, 
-                                input_shape=Shape.OBSERVATIONS,
-                                hiddens=[64, 64],
-                                hidden_activation=["relu", "relu"],
-                                output_shape=Shape.ACTIONS,
-                                output_activation=None,
-                                output_scale=1.0)
+    pass
+    # observation_space = Box(-torch.inf,torch.inf,(3,))
+    # action_space = Box(-1.0,1.0,(2,))
+    # policy = Policy(observation_space,action_space, features=[512,256,128], activation_function="elu")
+    # value = Value(observation_space,action_space, features=[512,256,128], activation_function="elu")
+    # policy2 = deterministic_model(observation_space=env.observation_space, 
+    #                             action_space=env.action_space,
+    #                             device=device,
+    #                             clip_actions=False, 
+    #                             input_shape=Shape.OBSERVATIONS,
+    #                             hiddens=[64, 64],
+    #                             hidden_activation=["relu", "relu"],
+    #                             output_shape=Shape.ACTIONS,
+    #                             output_activation=None,
+    #                             output_scale=1.0)
 
 
-    print(policy)
-    print(value)
+    # print(policy)
+    # print(value)

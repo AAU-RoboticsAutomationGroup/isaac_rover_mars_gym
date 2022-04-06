@@ -34,7 +34,7 @@ sudo systemctl restart docker
   
   1. Download Isaac Gym from https://developer.nvidia.com/isaac-gym
   2. Unzip Isaac Gym
-  3. nano isaacgym/docker/run.sh
+  <!-- 3. nano isaacgym/docker/run.sh
   4. Remove all text and paste
 ```
 #!/bin/bash
@@ -52,20 +52,25 @@ else
 	docker run -it -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY --network=host --gpus=all --name=isaacgym_container isaacgym /bin/bash
 	xhost -
 fi
-```
-5. nano isaacgym/docker/Dockerfile
-6. Insert the follwing code at the bottom of the file and save.
+```-->
+3. nano isaacgym/docker/Dockerfile
+4. Insert the follwing code at the bottom of the file and save.
 
 ```
-RUN git clone https://github.com/ExoMyRL/isaac_rover.git /home/gymuser/isaac_rover
+RUN git clone https://github.com/abmoRobotics/isaac_rover /home/gymuser/isaac_rover
+RUN pip3 install -e /home/gymuser/isaac_rover/.
+RUN git clone https://github.com/Toni-SM/skrl.git /home/gymuser/skrl
+RUN pip3 install -e /home/gymuser/skrl/.
 WORKDIR /home/gymuser/isaac_rover
+
 ```
-7. sudo groupadd docker
-8. sudo gpasswd -a $USER docker
-9. restart PC
-10. bash docker/build.sh
-11. bash docker/run.sh DISPLAYPORT
-12. Enter container from different terminals --- sudo docker exec -it isaacgym_container bash 
+<!---#7. sudo groupadd docker
+#8. sudo gpasswd -a $USER docker
+#9. restart PC-->
+5. bash docker/build.sh
+6. docker run -it -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY --network=host --gpus=all --name=isaacgym_exomy_container isaacgym /bin/bash
+#11. bash docker/run.sh DISPLAYPORT
+7. Enter container from different terminals --- sudo docker exec -it isaacgym_container bash 
   
 
 <!---</details>--->

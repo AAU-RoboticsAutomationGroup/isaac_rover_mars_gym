@@ -19,6 +19,8 @@ INSTALL_REQUIRES = [
     "omegaconf",
     "hydra-core>=1.1",
     "rl-games==1.1.3",
+    "scipy==1.8.0",
+    "torchgeometry==0.1.2",
 ]
 
 # Installation operation

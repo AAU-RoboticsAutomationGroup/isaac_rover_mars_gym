@@ -5,6 +5,7 @@ import os
 import torch
 import xml.etree.ElementTree as ET
 import random
+from utils.terrain_generation import *
 from utils.torch_jit_utils import *
 from tasks.base.vec_task import VecTask
 #from utils.kinematics import Rover
@@ -96,7 +97,7 @@ class Exomy_actual(VecTask):
         #    - set up gravity
         self.sim_params.gravity.x = 0
         self.sim_params.gravity.y = 0
-        self.sim_params.gravity.z = -9.82  
+        self.sim_params.gravity.z = -9.81 
         #    - call super().create_sim with device args (see docstring)
         self.sim = super().create_sim(self.device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
 
@@ -120,10 +121,30 @@ class Exomy_actual(VecTask):
 
 
     def _create_ground_plane(self):
-        plane_params = gymapi.PlaneParams()
-        # set the nroaml force to be z dimension
-        plane_params.normal = gymapi.Vec3(0.0,0.0,1.0)
-        self.gym.add_ground(self.sim, plane_params)
+        # Terrain specifications
+        terrain_width = 40 # terrain width [m]
+        terrain_length = 40 # terrain length [m]
+        horizontal_scale = 0.1 # resolution per meter 
+        vertical_scale = 0.005 # vertical resolution [m]
+        self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
+
+        def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
+        terrain = gaussian_terrain(new_sub_terrain())
+        #heightfield[0:int(terrain_width/horizontal_scale),:]= gaussian_terrain(new_sub_terrain()).height_field_raw
+        self.heightfield[0:int(terrain_width/horizontal_scale),:]= add_rocks_terrain(terrain=terrain).height_field_raw
+        vertices, triangles = convert_heightfield_to_trimesh1(self.heightfield, horizontal_scale=horizontal_scale, vertical_scale=vertical_scale, slope_threshold=None)
+        self.tensor_map = torch.Tensor(self.heightfield)
+        self.horizontal_scale = horizontal_scale
+        self.vertical_scale = vertical_scale
+        tm_params = gymapi.TriangleMeshParams()
+        tm_params.nb_vertices = vertices.shape[0]
+        tm_params.nb_triangles = triangles.shape[0]
+
+        # If the gound plane should be shifted:
+        tm_params.transform.p.x = -2.5
+        tm_params.transform.p.y = -2.5
+
+        self.gym.add_triangle_mesh(self.sim, vertices.flatten(), triangles.flatten(), tm_params)
     
     def set_targets(self, env_ids):
         num_sets = len(env_ids)
@@ -210,8 +231,8 @@ class Exomy_actual(VecTask):
         ]
 
         exomy_dof_props["stiffness"].fill(800.0)
-        exomy_dof_props["damping"].fill(0.01)
-        exomy_dof_props["friction"].fill(0.5)
+        exomy_dof_props["damping"].fill(0.1)
+        exomy_dof_props["friction"].fill(0.0001)
         pose = gymapi.Transform()
         pose.p.z = 0.2
         # asset is rotated z-up by default, no additional rotations needed
@@ -353,6 +374,9 @@ class Exomy_actual(VecTask):
         #pos, vel = self.Kinematics.Get_AckermannValues(1,1)
         _actions[:,0] = _actions[:,0] * 3
         _actions[:,1] = _actions[:,1] * 3
+
+        #_actions[:,0] = 0
+        #_actions[:,1] = math.pi
         steering_angles, motor_velocities = Ackermann(_actions[:,0], _actions[:,1])
         # actions_tensor[1::15]=(_actions[:,0]) * self.max_effort_pos  #1  #LF POS
         # actions_tensor[2::15]=(_actions[:,1]) * self.max_effort_vel #2  #LF DRIVE
@@ -366,6 +390,7 @@ class Exomy_actual(VecTask):
         # actions_tensor[12::15]= (_actions[:,9]) * self.max_effort_vel #12 #RF DRIVE
         # actions_tensor[13::15]=(_actions[:,10]) * self.max_effort_pos #13 #RM POS
         # actions_tensor[14::15]=(_actions[:,11]) * self.max_effort_vel #14 #RM DRIVE
+        #print(motor_velocities)
         actions_tensor[1::15]=(steering_angles[:,2])   #1  #ML POS
         actions_tensor[2::15]=(motor_velocities[:,2])  #2  #ML DRIVE
         actions_tensor[3::15]=(steering_angles[:,0])   #3   #FL POS
@@ -482,8 +507,8 @@ def compute_exomy_reward(root_positions, target_root_positions,
 
 
     
-    pos_reward = 1.0 / (1.0 + target_dist * target_dist)
-    #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.0001 * progress_buf) + (0.5 * heading_diff))
+    #pos_reward = 1.0 / (1.0 + target_dist * target_dist)
+    pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
     # if math.isnan(torch.min(heading_diff)):
     #     print(dot[torch.argmax(heading_diff)])
     #     print(heading_diff[torch.argmax(heading_diff)])

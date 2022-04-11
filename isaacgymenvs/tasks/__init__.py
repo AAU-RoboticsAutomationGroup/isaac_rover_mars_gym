@@ -28,9 +28,10 @@
 
 from tasks.exomy import Exomy
 from tasks.exomy_actual import Exomy_actual
-
+from tasks.exomy_new import Exomy_new
 # Mappings from strings to environments
 isaacgym_task_map = {
     "Exomy": Exomy,
     "Exomy_actual": Exomy_actual,
+    "Exomy_new": Exomy_new,
 }

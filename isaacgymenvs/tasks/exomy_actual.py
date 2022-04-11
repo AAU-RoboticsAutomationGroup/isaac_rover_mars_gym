@@ -12,6 +12,8 @@ import torchgeometry as tgm
 from isaacgym import gymutil, gymtorch, gymapi
 from scipy.spatial.transform import Rotation as R
 from utils.kinematics import Ackermann
+from utils.tensor_quat_to_euler import tensor_quat_to_eul
+from utils.exo_depth_observation import exo_depth_observation, height_lookup
 
 class Exomy_actual(VecTask):
 
@@ -87,11 +89,28 @@ class Exomy_actual(VecTask):
         cam_target = gymapi.Vec3(1.0, 1.0, 0.15)
         self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
 
+        # Depth detection points. Origin is body origin(Can be identified in SolidWorks.)
+        exo_depth_points = [[0,-310], [100,-310], [200,-310], [300,-310], [-100,-310], [-200,-310], [-300,-310],  
+                            [0,-410], [100,-410], [200,-410], [300,-410], [400,-410], [-100,-410], [-200,-410], [-300,-410], [-400,-410], 
+                            [0,-510], [100,-510], [200,-510], [300,-510], [400,-510], [500,-510], [-100,-510], [-200,-510], [-300,-510], [-400,-510], [-500,-510], 
+                            [0,-610], [100,-610], [200,-610], [300,-610], [400,-610], [500,-610], [500,-610], [-100,-610], [-200,-610], [-300,-610], [-400,-610], [-500,-610], [-600,-610], 
+                            [0,-810],  [200,-810], [400,-810], [600,-810], [800,-810], [-200,-810], [-400,-810], [-600,-810], [-800,-810], 
+                            [0,-1010], [200,-1010], [400,-1010], [600,-1010], [800,-1010], [-200,-1010], [-400,-1010], [-600,-1010], [-800,-1010],
+                            [0,-1210], [200,-1210], [400,-1210], [600,-1210], [800,-1210], [1000,-1210], [-200,-1210], [-400,-1210], [-600,-1210], [-800,-1210], [-1000,-1210], 
+                            [0,-1410], [200,-1410], [400,-1410], [600,-1410], [800,-1410], [1000,-1410], [1200,-1410], [-200,-1410], [-400,-1410], [-600,-1410], [-800,-1410], [-1000,-1410], [-1200,-1410], 
+                            [0,-1610], [200,-1610], [400,-1610], [600,-1610], [800,-1610], [1000,-1610], [1200,-1610], [1400,-1610], [-200,-1610], [-400,-1610], [-600,-1610], [-800,-1610], [-1000,-1610], [-1200,-1610], [-1400,-1610], 
+                            [0,-1810], [200,-1810], [400,-1810], [600,-1810], [800,-1810], [1000,-1810], [1200,-1810], [1400,-1810], [1600,-1810], [-200,-1810], [-400,-1810], [-600,-1810], [-800,-1810], [-1000,-1810], [-1200,-1810], [-1400,-1810], [-1600,-1810], 
+                            [0,-2010], [200,-1810], [400,-1810], [600,-1810], [800,-1810], [1000,-1810], [1200,-1810], [1400,-1810], [1600,-1810], [-200,-1810], [-400,-1810], [-600,-1810], [-800,-1810], [-1000,-1810], [-1200,-1810], [-1400,-1810], [-1600,-1810], 
+                            [0,-2210], [200,-2210], [400,-2210], [600,-2210], [800,-2210], [1000,-2210], [1200,-2210], [1400,-2210], [1600,-2210], [1800,-2210], [-200,-2210], [-400,-2210], [-600,-2210], [-800,-2210], [-1000,-2210], [-1200,-2210], [-1400,-2210], [-1600,-2210], [-1800,-2210], ] 
+
+        self.exo_depth_points_tensor = torch.tensor(exo_depth_points, device='cuda:0')
+        self.exo_depth_points_tensor = self.exo_depth_points_tensor * 0.001
+        self.exo_locations_tensor = torch.zeros([self.num_envs, 6], device='cuda:0')
+
     def create_sim(self):
         # implement sim set up and environment creation here
         #    - set up-axis
         self.sim_params.up_axis = gymapi.UP_AXIS_Z
-        
         
         #    - set up gravity
         self.sim_params.gravity.x = 0
@@ -108,12 +127,6 @@ class Exomy_actual(VecTask):
         self._create_ground_plane()
         #    - set up environments
         self._create_envs(self.num_envs, self.cfg["env"]['envSpacing'], int(np.sqrt(self.num_envs)))
-
-        
-
-
-
-
 
     def _create_exomy_asset(self):
         pass
@@ -150,8 +163,8 @@ class Exomy_actual(VecTask):
 
     def _create_envs(self,num_envs,spacing, num_per_row):
        # define plane on which environments are initialized
-        lower = gymapi.Vec3(0.5 * -spacing, -spacing, 0.0)
-        upper = gymapi.Vec3(0.5 * spacing, spacing, spacing)
+        lower = gymapi.Vec3(0.5 * -spacing, 0.5 * -spacing, 0.0)
+        upper = gymapi.Vec3(0.5 * spacing, 0.5 * spacing, spacing)
 
         asset_root = "../assets"
         exomy_asset_file = "urdf/exomy_modelv2/urdf/exomy_model.urdf"
@@ -213,15 +226,15 @@ class Exomy_actual(VecTask):
         exomy_dof_props["damping"].fill(0.01)
         exomy_dof_props["friction"].fill(0.5)
         pose = gymapi.Transform()
-        pose.p.z = 0.2
+        pose.p.z = 0.5
         # asset is rotated z-up by default, no additional rotations needed
         pose.r = gymapi.Quat(0.0, 0.0, 1.0, 0.0)
 
         self.exomy_handles = []
         self.envs = []
+        env_origins = []
 
         #Create marker
-        
         default_pose = gymapi.Transform()
         default_pose.p.z = 0.0
         default_pose.p.x = 0.1        
@@ -244,8 +257,10 @@ class Exomy_actual(VecTask):
             )
             self.exomy_handles.append(exomy0_handle)
 
-            
-    
+            #Store environment origins
+            origin = self.gym.get_env_origin(env0)
+            env_origins.append([origin.x, origin.y, origin.z])
+                
             # Configure DOF properties
             # Set initial DOF states
             # gym.set_actor_dof_states(env0, exomy0_handle, default_dof_state, gymapi.STATE_ALL)
@@ -256,6 +271,9 @@ class Exomy_actual(VecTask):
             # Spawn marker
             marker_handle = self.gym.create_actor(env0, marker_asset, default_pose, "marker", i, 1, 1)
             self.gym.set_rigid_body_color(env0, marker_handle, 0, gymapi.MESH_VISUAL_AND_COLLISION, gymapi.Vec3(1, 0, 0))
+
+        # Convert environment origins to tensor
+        self.env_origins_tensor = torch.tensor(env_origins, device='cuda:0')
 
     def reset_idx(self, env_ids):
         # set rotor speeds
@@ -418,14 +436,22 @@ class Exomy_actual(VecTask):
         #print(torch.max(self.progress_buf))
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
-        root_quat = R.from_quat(self.root_quats.cpu())
-        self.root_euler = torch.from_numpy(root_quat.as_euler('xyz')).to(self.device)
-        #self.root_euler = tgm.quaternion_to_angle_axis(self.root_quats)
+        self.root_euler = tensor_quat_to_eul(self.root_quats)
 
+        # Compute location for each robot
+        self.location_tensor = gymtorch.wrap_tensor(self.gym.acquire_rigid_body_state_tensor(self.sim))[0::20]
+        self.exo_locations_tensor[:, 0:3] = self.location_tensor[:,0:3].add(self.env_origins_tensor)
+        exo_rot = tensor_quat_to_eul(self.location_tensor[:,3:7])
+        # exo_x_rotation = exo_rot[:,0] # Local yaw
+        # exo_y_rotation = exo_rot[:,1] # Local tilt
+        # exo_z_rotation = torch.atan2(torch.sin(exo_rot[:,2]) * torch.cos(exo_rot[:,1]), torch.cos(exo_rot[:,2]) * torch.cos(exo_rot[:,0])) # Global direction
+        exo_rot[:,2] = torch.atan2(torch.sin(exo_rot[:,2]) * torch.cos(exo_rot[:,1]), torch.cos(exo_rot[:,2]) * torch.cos(exo_rot[:,0])) # Global direction
         
-        
+        # Compute depth point locations in x,y from robot orientation and location.
+        depth_point_locations = exo_depth_observation(exo_rot, self.exo_locations_tensor[:,0:3], self.exo_depth_points_tensor)
+        # Lookup heigt at depth point locations.
+        height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale)
 
-        #print(self.vec_root_tensor)
         self.compute_observations()
         self.compute_rewards()
 

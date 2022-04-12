@@ -87,6 +87,7 @@ class Exomy_actual(VecTask):
 
         # Depth detection points. Origin is body origin(Can be identified in SolidWorks.)
         exo_depth_points = heightmap_distribution( delta=0.1, limit=1.2,front_heavy=0.0, plot=False) #Uniform
+        print(np.size(exo_depth_points))
         # heightmap_distribution( delta=0.07, limit=2,front_heavy=0.012, plot=False) # Weigted little towards front
         # heightmap_distribution( delta=0.06, limit=1.6,front_heavy=0.01, plot=True) # Weigted more towards front
 

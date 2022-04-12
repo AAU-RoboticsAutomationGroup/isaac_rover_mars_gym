@@ -1,0 +1,25 @@
+ tests: 
+  test19: 
+    actor_mlp: [128,64,32]
+    critic_mlp: [128,64]
+    encoder_mlp: [80,60]
+    activation_function: "leakyrelu"
+    activation_function_critic: "relu"
+    activation_function_encoder: "relu"
+    algorithm: "ppo"
+  test20:
+    actor_mlp: [128,64,32]
+    critic_mlp: [128,64]
+    encoder_mlp: [60,20]
+    activation_function: "leakyrelu"
+    activation_function_critic: "relu"
+    activation_function_encoder: "relu"
+    algorithm: "ppo"
+  test21:
+    actor_mlp: [128,64,32]
+    critic_mlp: [128,64]
+    encoder_mlp: [40,20]
+    activation_function: "leakyrelu"
+    activation_function_critic: "relu"
+    activation_function_encoder: "relu"
+    algorithm: "ppo"

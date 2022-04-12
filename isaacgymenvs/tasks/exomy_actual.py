@@ -24,7 +24,11 @@ class Exomy_actual(VecTask):
         self.cfg = cfg
         #self.Kinematics = Rover()
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
-        self.cfg["env"]["numObservations"] = 3
+        num_camera_inputs = 150
+        num_observations = 3
+        self.cfg["env"]["numCamera"] = num_camera_inputs
+        self.cfg["env"]["numObservations"] = num_observations + num_camera_inputs
+        
         self.cfg["env"]["numActions"] = 2
         self.max_effort_vel = 5.2
         self.max_effort_pos = math.pi/2

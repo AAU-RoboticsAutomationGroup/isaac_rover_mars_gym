@@ -23,10 +23,10 @@ class Exomy_actual(VecTask):
         self.cfg = cfg
         #self.Kinematics = Rover()
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
-        num_camera_inputs = 150
-        num_observations = 3
-        self.cfg["env"]["numCamera"] = num_camera_inputs
-        self.cfg["env"]["numObservations"] = num_observations + num_camera_inputs
+        self._num_camera_inputs = 150
+        self._num_observations = 3
+        self.cfg["env"]["numCamera"] = self._num_camera_inputs
+        self.cfg["env"]["numObservations"] = self._num_observations + self._num_camera_inputs
         
         self.cfg["env"]["numActions"] = 2
         self.max_effort_vel = 5.2
@@ -130,8 +130,9 @@ class Exomy_actual(VecTask):
 
     def _create_ground_plane(self):
         # Terrain specifications
-        terrain_width = 40 # terrain width [m]
-        terrain_length = 40 # terrain length [m]
+        print("test")
+        terrain_width = 50 # terrain width [m]
+        terrain_length = 50 # terrain length [m]
         horizontal_scale = 0.1 # resolution per meter 
         vertical_scale = 0.005 # vertical resolution [m]
         self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
@@ -149,7 +150,7 @@ class Exomy_actual(VecTask):
         tm_params.nb_triangles = triangles.shape[0]
 
         # If the gound plane should be shifted:
-        self.shift = -2.5
+        self.shift = -5
         tm_params.transform.p.x = self.shift
         tm_params.transform.p.y = self.shift
 
@@ -370,6 +371,8 @@ class Exomy_actual(VecTask):
         #max = 2
         #actions_tensor = actions.to(self.device).squeeze() * 400
         #pos, vel = self.Kinematics.Get_AckermannValues(1,1)
+        # print(_actions)
+        # print(_actions.shape)
         _actions[:,0] = _actions[:,0] * 3
         _actions[:,1] = _actions[:,1] * 3
 
@@ -452,16 +455,17 @@ class Exomy_actual(VecTask):
         # Compute depth point locations in x,y from robot orientation and location.
         depth_point_locations = exo_depth_observation(exo_rot, self.exo_locations_tensor[:,0:3], self.exo_depth_points_tensor)
         # Lookup heigt at depth point locations.
-        heights = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3])
+        self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3])
         # Visualize points for robot [0]
         # visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], heights[0:1,:], 0.1)
-
+        #print(self.elevationMap.shape)
         self.compute_observations()
         self.compute_rewards()
 
     def compute_observations(self):
         self.obs_buf[..., 0:2] = (self.target_root_positions[..., 0:2] - self.root_positions[..., 0:2]) / 4
         self.obs_buf[..., 2] = (self.root_euler[..., 2]  - (math.pi/2)) + (math.pi / (2 * math.pi))
+        self.obs_buf[...,self._num_observations:(self._num_observations+self._num_camera_inputs)] = self.elevationMap
         #self.obs_buf[..., 3:6] = self.root_linvels
         #self.obs_buf[..., 6:9] = self.root_angvels
         #print(self.obs_buf[0, 2:5])
@@ -510,10 +514,15 @@ def compute_exomy_reward(root_positions, target_root_positions,
     # print(target_vector[torch.argmax(heading_diff)])
     #print(torch.rad2deg(root_euler[..., 2]))
 
-
-    
-    #pos_reward = 1.0 / (1.0 + target_dist * target_dist)
-    pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
+    #Constraint Reward(-) ( To avoid reversing)
+    #Motion Reward(-) (do reduce oscillation output)
+    #Torque Reward (-)
+    #Collision reward(-)
+    #Reward when approaching goal each time step(+/-)
+    #Ground slope and dist. nearest obstacle (NASA)
+    pos_reward = 1.0 / (1.0 + target_dist * target_dist)
+    # weigths = 0.75 3
+    #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
     # if math.isnan(torch.min(heading_diff)):
     #     print(dot[torch.argmax(heading_diff)])
     #     print(heading_diff[torch.argmax(heading_diff)])

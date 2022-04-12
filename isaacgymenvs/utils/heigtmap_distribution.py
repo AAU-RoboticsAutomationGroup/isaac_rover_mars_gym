@@ -1,7 +1,7 @@
 import dis
 from importlib_metadata import distribution
 import numpy as np
-import heigtmap_distribution
+#import heigtmap_distribution
 import matplotlib.pyplot as plt
 
 def heightmap_distribution( delta=0, front_heavy=0, limit=3, plot=True):

@@ -228,12 +228,12 @@ def VisualTest():
     heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
   
     def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
-    #terrain = gaussian_terrain(new_sub_terrain())
+    terrain = gaussian_terrain(new_sub_terrain())
     #heightfield[0:int(terrain_width/horizontal_scale),:]= gaussian_terrain(new_sub_terrain()).height_field_raw
-    heightfield[0:int(terrain_width/horizontal_scale),:]= add_rocks_terrain(terrain=new_sub_terrain()).height_field_raw
-    vertices, triangles = convert_heightfield_to_trimesh1(heightfield, horizontal_scale=horizontal_scale, vertical_scale=vertical_scale, slope_threshold=0.15)
+    heightfield[0:int(terrain_width/horizontal_scale),:]= add_rocks_terrain(terrain=terrain).height_field_raw
+    vertices, triangles = convert_heightfield_to_trimesh1(heightfield, horizontal_scale=horizontal_scale, vertical_scale=vertical_scale, slope_threshold=None)
    # print(vertices[:])
-    #print(vertices.pop(1).shape)
+    #print(vertices.pop(1).shape)new_sub_terrain()
 
     # a = np.array([[0.1, 0.1 , 1.0]],dtype=np.float32)
     # b = np.array([[0.11, 0.1 , 1.0]],dtype=np.float32)

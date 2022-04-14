@@ -43,7 +43,7 @@ class Exomy_actual(VecTask):
         self.root_tensor = self.gym.acquire_actor_root_state_tensor(self.sim)
         self.dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
         self.location_tensor_gym = self.gym.acquire_rigid_body_state_tensor(self.sim)
-        self.dof_force_tensor_gym = self.gym.acquire_dof_state_tensor(self.sim)
+        self.dof_force_tensor_gym = self.gym.acquire_dof_force_tensor(self.sim)
         
         # Convert buffer to vector, one is created for the robot and for the marker.
         vec_root_tensor = gymtorch.wrap_tensor(self.root_tensor).view(self.num_envs, 2, 13)
@@ -68,8 +68,8 @@ class Exomy_actual(VecTask):
 
         # Previous actions and torques
         self.actions_nn = torch.zeros((self.num_envs, self.cfg["env"]["numActions"], 3), device=self.device)
-        self.steering_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
-        self.driving_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
+        #self.steering_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
+        #self.driving_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
 
         # Marker position
         self.marker_states = vec_root_tensor[:, 1, :]
@@ -280,7 +280,7 @@ class Exomy_actual(VecTask):
                 1,  # Bitwise filter for elements in the same collisionGroup to mask off collision
             )
             self.exomy_handles.append(exomy0_handle)
-
+            self.gym.enable_actor_dof_force_sensors(env0, exomy0_handle)
             
             # Configure DOF properties
             # Set initial DOF states
@@ -440,7 +440,7 @@ class Exomy_actual(VecTask):
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
         self.gym.refresh_dof_force_tensor(self.sim)
-        #self.gym.refresh_rigid_body_state_tensor(self.sim)
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
         self.root_euler = tensor_quat_to_eul(self.root_quats)
 
         # Compute location and rotation(RPY) for root body of each robot
@@ -455,7 +455,7 @@ class Exomy_actual(VecTask):
         # Lookup heigt at depth point locations.
         self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3])
         # Visualize points for robot [0]
-        visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1)
+        # visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1)
 
         self.compute_observations()
         self.compute_rewards()
@@ -477,15 +477,15 @@ class Exomy_actual(VecTask):
         self.exo_locations_tensor[:, 0:2] = self.exo_locations_tensor[:, 0:2] - self.shift
 
         self.rew_buf[:], self.reset_buf[:] = compute_exomy_reward(self.root_positions,
-            self.target_root_positions, self.root_quats, self.root_euler, self.actions_nn, self.driving_torques,
-            self.steering_torques, self.exo_locations_tensor[:, 0:3], self.rock_positions,
+            self.target_root_positions, self.root_quats, self.root_euler, self.actions_nn,
+            self.dof_force_tensor, self.exo_locations_tensor[:, 0:3], self.rock_positions,
             self.reset_buf, self.progress_buf, self.max_episode_length)        
 
 
 @torch.jit.script
 def compute_exomy_reward(root_positions, target_root_positions,
-        root_quats, root_euler, actions_nn, driving_torques, steering_torques, global_location, rock_positions, reset_buf, progress_buf, max_episode_length):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
+        root_quats, root_euler, actions_nn, forces, global_location, rock_positions, reset_buf, progress_buf, max_episode_length):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
     # distance to target
     target_dist = torch.sqrt(torch.square(target_root_positions - root_positions).sum(-1))
     target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
@@ -519,8 +519,8 @@ def compute_exomy_reward(root_positions, target_root_positions,
     # Motion constraint - Ikke oscilere på output
 
     # Torque reward - Lidt penalty når den kører
-    torque_reward_driving = torch.abs(driving_torques[:,:,0]).mean(dim=1)
-    torque_reward_steering = torch.abs(steering_torques[:,:,0]).mean(dim=1)
+    # torque_reward_driving = torch.abs(driving_torques[:,:,0]).mean(dim=1)
+    # torque_reward_steering = torch.abs(steering_torques[:,:,0]).mean(dim=1)
 
     reward = pos_reward
 

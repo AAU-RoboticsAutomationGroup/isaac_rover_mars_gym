@@ -43,11 +43,15 @@ class Exomy_actual(VecTask):
         self.root_tensor = self.gym.acquire_actor_root_state_tensor(self.sim)
         self.dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
         self.location_tensor_gym = self.gym.acquire_rigid_body_state_tensor(self.sim)
+        self.dof_force_tensor_gym = self.gym.acquire_dof_state_tensor(self.sim)
         
         # Convert buffer to vector, one is created for the robot and for the marker.
         vec_root_tensor = gymtorch.wrap_tensor(self.root_tensor).view(self.num_envs, 2, 13)
         vec_dof_tensor = gymtorch.wrap_tensor(self.dof_state_tensor).view(self.num_envs, dofs_per_env, 2)
+
+        # Convert gym tensors to pytorch tensors.
         self.location_tensor = gymtorch.wrap_tensor(self.location_tensor_gym)[0::20]
+        self.dof_force_tensor = gymtorch.wrap_tensor(self.dof_force_tensor_gym)
 
         # Position vector for robot
         self.root_states = vec_root_tensor[:, 0, :]
@@ -61,6 +65,11 @@ class Exomy_actual(VecTask):
         
         self.target_root_positions = torch.zeros((self.num_envs, 3), device=self.device, dtype=torch.float32)
         self.target_root_positions[:, 2] = 0
+
+        # Previous actions and torques
+        self.actions_nn = torch.zeros((self.num_envs, self.cfg["env"]["numActions"], 3), device=self.device)
+        self.steering_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
+        self.driving_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
 
         # Marker position
         self.marker_states = vec_root_tensor[:, 1, :]
@@ -96,8 +105,6 @@ class Exomy_actual(VecTask):
 
         # Convert numpy to tensor
         self.exo_depth_points_tensor = torch.tensor(exo_depth_points, device='cuda:0')
-        # Scale from milimeters to meters
-        self.exo_depth_points_tensor = self.exo_depth_points_tensor * 0.001
         # Initialize empty location tensor for all robots
         self.exo_locations_tensor = torch.zeros([self.num_envs, 6], device='cuda:0')
         self.check_spawn_collision()
@@ -342,16 +349,13 @@ class Exomy_actual(VecTask):
 
     def pre_physics_step(self, actions):
 
-
         target_actor_indices = torch.tensor([], device=self.device, dtype=torch.int32)
-
     
         reset_env_ids = self.reset_buf.nonzero(as_tuple=False).squeeze(-1)
         actor_indices = torch.tensor([], device=self.device, dtype=torch.int32)
-
+        
         if len(reset_env_ids) > 0:
             actor_indices = self.reset_idx(reset_env_ids)
-
 
         reset_indices = torch.unique(torch.cat([target_actor_indices]))
         if len(reset_indices) > 0:
@@ -360,12 +364,28 @@ class Exomy_actual(VecTask):
         actions_tensor = torch.zeros(self.num_envs * self.num_dof, device=self.device, dtype=torch.float)
         _actions = actions.to(self.device)
 
+        '''
+        # Code for running ExoMy in end-to-end mode
+        actions_tensor[1::15]=(_actions[:,0]) * self.max_effort_pos  #1  #LF POS
+        actions_tensor[2::15]=(_actions[:,1]) * self.max_effort_vel #2  #LF DRIVE
+        actions_tensor[3::15]=(_actions[:,2]) * self.max_effort_pos #3  #LM POS
+        actions_tensor[4::15]=(_actions[:,3]) * self.max_effort_vel #4  #LM DRIVE
+        actions_tensor[6::15]=(_actions[:,4]) * self.max_effort_pos #6  #LR POS
+        actions_tensor[7::15]=(_actions[:,5]) * self.max_effort_vel #7  #LR DRIVE
+        actions_tensor[8::15]=(_actions[:,6]) * self.max_effort_pos #8  #RR POS
+        actions_tensor[9::15]=(_actions[:,7]) * self.max_effort_vel #9  #RR DRIVE
+        actions_tensor[11::15]=(_actions[:,8]) * self.max_effort_pos #11 #RF POS 
+        actions_tensor[12::15]= (_actions[:,9]) * self.max_effort_vel #12 #RF DRIVE
+        actions_tensor[13::15]=(_actions[:,10]) * self.max_effort_pos #13 #RM POS
+        actions_tensor[14::15]=(_actions[:,11]) * self.max_effort_vel #14 #RM DRIVE
+        '''
 
+        # Code for running ExoMy in Ackermann mode
         _actions[:,0] = _actions[:,0] * 3
         _actions[:,1] = _actions[:,1] * 3
-
+        #_actions[:,0] = 0
+        #_actions[:,1] = math.pi
         steering_angles, motor_velocities = Ackermann(_actions[:,0], _actions[:,1])
-
         actions_tensor[1::15]=(steering_angles[:,2])   #1  #ML POS
         actions_tensor[2::15]=(motor_velocities[:,2])  #2  #ML DRIVE
         actions_tensor[3::15]=(steering_angles[:,0])   #3   #FL POS
@@ -375,11 +395,51 @@ class Exomy_actual(VecTask):
         actions_tensor[8::15]=(steering_angles[:,5])   #8  #RR POS
         actions_tensor[9::15]=(motor_velocities[:,5])  #9  #RR DRIVE
         actions_tensor[11::15]=(steering_angles[:,3])  #11 #MR POS  
-        actions_tensor[12::15]= (motor_velocities[:,3])#12 #MR DRIVE
+        actions_tensor[12::15]=(motor_velocities[:,3]) #12 #MR DRIVE
         actions_tensor[13::15]=(steering_angles[:,1])  #13 #FR POS
+        actions_tensor[14::15]=(motor_velocities[:,1]) #14 #FR DRIVE
 
+        '''
+        # Code for extracting position and velocity goal over time.
 
+        # Add new action and torques to "remember"-variable. Remove old action/torque. Used to compute rewards/penalties
+            # Action
+        self.actions_nn = torch.cat((torch.reshape(_actions,(self.num_envs, self.cfg["env"]["numActions"], 1)), self.actions_nn), 2)[:,:,0:3]
+            # Steering angles
+        steering_angles = torch.stack((steering_angles[:,1], steering_angles[:,3], steering_angles[:,5], steering_angles[:,0], steering_angles[:,2], steering_angles[:,4]), dim=1)
+        #steering_angles = torch.stack()
+        self.steering_angles = torch.cat((torch.reshape(steering_angles,(self.num_envs, 6, 1)), self.steering_angles), 2)[:,:,0:3]
+            # Driving velocities
+        driving_velocities = torch.stack((motor_velocities[:,1], motor_velocities[:,3], motor_velocities[:,5], motor_velocities[:,0], motor_velocities[:,2], motor_velocities[:,4]), dim=1)
+        self.driving_velocities = torch.cat((torch.reshape(driving_velocities,(self.num_envs, 6, 1)), self.driving_velocities), 2)[:,:,0:3]
+        '''
 
+        '''
+        # Code for manually setting the speed for exo motors.
+        actions_tensor[1::15] = -math.pi/4 #1  #ML POS
+        actions_tensor[2::15] = 0 #2  #ML DRIVE
+        actions_tensor[3::15] = -math.pi/4 #3  #FL POS
+        actions_tensor[4::15] = 0 #4  #FL DRIVE
+        actions_tensor[6::15] = -math.pi/4 #6  #RL POS
+        actions_tensor[7::15] = 0 #7  #RL DRIVE
+        actions_tensor[8::15] = -math.pi/4 #8  #RR POS
+        actions_tensor[9::15] = 0 #9  #RR DRIVE
+        actions_tensor[11::15] = -math.pi/4 #11 #MR POS 
+        actions_tensor[12::15] = 0 #12 #MR DRIVE
+        actions_tensor[13::15] = -math.pi/4 #13 #FR POS
+        actions_tensor[14::15] = 0 #14 #FR DRIVE
+        speed =10
+        actions_tensor[0] = 100 #BOTH REAR DRIVE        
+        actions_tensor[2] = speed 
+        actions_tensor[3] = 0
+        actions_tensor[4] = speed 
+        actions_tensor[7] = speed 
+        actions_tensor[9] = speed 
+        actions_tensor[12] = speed
+        actions_tensor[14] = speed
+        '''
+        
+        # Set 
         self.gym.set_dof_velocity_target_tensor(self.sim, gymtorch.unwrap_tensor(actions_tensor)) #)
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(actions_tensor)) #)
         
@@ -390,6 +450,8 @@ class Exomy_actual(VecTask):
         self.progress_buf += 1
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
+        self.gym.refresh_dof_force_tensor(self.sim)
+        #self.gym.refresh_rigid_body_state_tensor(self.sim)
         self.root_euler = tensor_quat_to_eul(self.root_quats)
 
         # Compute location and rotation(RPY) for root body of each robot
@@ -426,16 +488,15 @@ class Exomy_actual(VecTask):
         self.exo_locations_tensor[:, 0:2] = self.exo_locations_tensor[:, 0:2] - self.shift
 
         self.rew_buf[:], self.reset_buf[:] = compute_exomy_reward(self.root_positions,
-            self.target_root_positions, self.root_quats, self.root_euler,
-            self.exo_locations_tensor[:, 0:3], self.rock_positions,
+            self.target_root_positions, self.root_quats, self.root_euler, self.actions_nn, self.driving_torques,
+            self.steering_torques, self.exo_locations_tensor[:, 0:3], self.rock_positions,
             self.reset_buf, self.progress_buf, self.max_episode_length)        
 
 
 @torch.jit.script
 def compute_exomy_reward(root_positions, target_root_positions,
-        root_quats, root_euler, global_location, rock_positions, reset_buf, progress_buf, max_episode_length):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
-
+        root_quats, root_euler, actions_nn, driving_torques, steering_torques, global_location, rock_positions, reset_buf, progress_buf, max_episode_length):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
     # distance to target
     target_dist = torch.sqrt(torch.square(target_root_positions - root_positions).sum(-1))
     target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
@@ -453,7 +514,7 @@ def compute_exomy_reward(root_positions, target_root_positions,
     # Collision reward(-)
     # Reward when approaching goal each time step(+/-) lavet
     # Ground slope and dist. nearest obstacle (NASA)
-    
+
     # distance to target
     pos_reward = 1.0 / (1.0 + target_dist * target_dist)
     #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
@@ -465,13 +526,13 @@ def compute_exomy_reward(root_positions, target_root_positions,
 
     # Uprightness 
 
-    # Heading constraint
-
-    # Motion constraint
-
-    # Torque reward 
+    # Heading constraint - Ikke køre baglæns
     
+    # Motion constraint - Ikke oscilere på output
 
+    # Torque reward - Lidt penalty når den kører
+    torque_reward_driving = torch.abs(driving_torques[:,:,0]).mean(dim=1)
+    torque_reward_steering = torch.abs(steering_torques[:,:,0]).mean(dim=1)
 
     reward = pos_reward
 

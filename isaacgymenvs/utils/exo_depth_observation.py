@@ -51,7 +51,7 @@ def height_lookup(heightmap: torch.Tensor, depth_points: torch.Tensor, horizonta
         y = y.reshape([(depth_points.size()[0]* depth_points.size()[1]), 1])
         x = x.type(torch.long)
         y = y.type(torch.long)
-
+        
         # Lookup heights in heightmap
         heights = heightmap[x, y]
         # Scale to fit actual height, dependent on resolution

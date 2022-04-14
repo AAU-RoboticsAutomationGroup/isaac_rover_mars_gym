@@ -56,20 +56,14 @@ def height_lookup(heightmap: torch.Tensor, depth_points: torch.Tensor, horizonta
         heights = heightmap[x, y]
         # Scale to fit actual height, dependent on resolution
         heights = heights * vertical_scale
+        # Shift heigtd to to ground height
+        heights = heights + 0.106
         # Reshape heigts to correct size
         heights = heights.reshape([depth_points.size()[0], depth_points.size()[1]])
 
-        # Set visualize variable
-        visualize = True
-        
-        # If vizualisation not on, shift Z-coordinates to correct values
-        if visualize == False:
-            # Z-shift, so points are measured relative to robot height.
-            exo_z_loc = torch.transpose(exo_loc[:,2].expand(depth_points.size()[1], depth_points.size()[0]), 0, 1)
-            heights = heights - exo_z_loc
-        else:
-            # Else, print message.
-            print("!!! DO NOT TRAIN ON THIS. HEIGHTS ARE OFFSET. !!!")
+        # Z-shift, so points are measured relative to robot height.
+        exo_z_loc = torch.transpose(exo_loc[:,2].expand(depth_points.size()[1], depth_points.size()[0]), 0, 1)
+        heights = heights - exo_z_loc
 
     # If 2 or less dimensions in scaled map(1 point for each robot) - Used to spawn robot at correct height
     else :
@@ -89,7 +83,7 @@ def height_lookup(heightmap: torch.Tensor, depth_points: torch.Tensor, horizonta
     # Return the found heights
     return heights
 
-def visualize_points(viewer, gym, environment, points, heights, line_length):
+def visualize_points(viewer, gym, environment, points, heights, line_length, exo_loc):
 
     # Find number of points to visualize
     lines_amount = points.size()[0]
@@ -97,7 +91,8 @@ def visualize_points(viewer, gym, environment, points, heights, line_length):
     # Convert points and heigts to numpy array
     points = points.cpu().numpy()
     heights = heights.cpu().numpy().transpose()
-    
+    exo_z_loc = exo_loc[0,2].cpu().numpy()#torch.transpose(exo_loc[:,2].expand(points.size()[1], points.size()[0]), 0, 1)
+    heights[:] = heights[:] + exo_z_loc
     # Store poins and heights in single variable
     lines = np.concatenate((points, heights), axis=1)
 

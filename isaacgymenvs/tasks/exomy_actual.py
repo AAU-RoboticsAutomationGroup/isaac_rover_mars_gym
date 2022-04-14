@@ -100,6 +100,7 @@ class Exomy_actual(VecTask):
         self.exo_depth_points_tensor = self.exo_depth_points_tensor * 0.001
         # Initialize empty location tensor for all robots
         self.exo_locations_tensor = torch.zeros([self.num_envs, 6], device='cuda:0')
+        self.check_spawn_collision()
 
     def create_sim(self):
         # implement sim set up and environment creation here
@@ -147,14 +148,24 @@ class Exomy_actual(VecTask):
         tm_params = gymapi.TriangleMeshParams()
         tm_params.nb_vertices = vertices.shape[0]
         tm_params.nb_triangles = triangles.shape[0]
-
+        
         # If the gound plane should be shifted:
         self.shift = -5
         tm_params.transform.p.x = self.shift
         tm_params.transform.p.y = self.shift
-
         self.gym.add_triangle_mesh(self.sim, vertices.flatten(), triangles.flatten(), tm_params)
     
+    def check_spawn_collision(self):
+ 
+
+
+        #self.initial_root_states[:,0] = torch.where(nearest_rock[:] <= 0.25,self.initial_root_states[:,0]+0.05,self.initial_root_states[:,0])
+        for i in range(1,10000):
+            self.exo_locations_tensor[:, 0:3] = self.initial_root_states[:,0:3].add(self.env_origins_tensor) - self.shift
+            dist_rocks = torch.cdist(self.exo_locations_tensor[:,0:2],self.rock_positions[:,0:2], p=2.0)   # Calculate distance to center of all rocks
+            dist_rocks[:] = dist_rocks[:]-self.rock_positions[:,3]                               # Calculate distance to nearest point of all rocks
+            nearest_rock = torch.min(dist_rocks,dim=1)[0]                                   # Find the closest rock to each robot
+            self.initial_root_states[:,0] = torch.where(nearest_rock[:] <= 0.4,self.initial_root_states[:,0]+0.05,self.initial_root_states[:,0])
     def set_targets(self, env_ids):
         num_sets = len(env_ids)
         # set target position randomly with x, y in (-2, 2) and z in (1, 2)
@@ -306,8 +317,8 @@ class Exomy_actual(VecTask):
         RQuat = torch.cuda.FloatTensor(r)
 
         self.root_states[env_ids] = self.initial_root_states[env_ids]
-        self.root_states[env_ids, 0] = 0#torch_rand_float(-1.5, 1.5, (num_resets, 1), self.device).flatten()
-        self.root_states[env_ids, 1] = 0#torch_rand_float(-1.5, 1.5, (num_resets, 1), self.device).flatten()
+        #self.root_states[env_ids, 0] = 0#torch_rand_float(-1.5, 1.5, (num_resets, 1), self.device).flatten()
+        #self.root_states[env_ids, 1] = 0#torch_rand_float(-1.5, 1.5, (num_resets, 1), self.device).flatten()
         self.root_states[env_ids, 2] = 0.2#torch_rand_float(-0.2, 1.5, (num_resets, 1), self.device).flatten()
 
         #Sets orientation
@@ -446,6 +457,7 @@ def compute_exomy_reward(root_positions, target_root_positions,
     # distance to target
     pos_reward = 1.0 / (1.0 + target_dist * target_dist)
     #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
+
     # Collision reward - Anton
     dist_rocks = torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0)   # Calculate distance to center of all rocks
     dist_rocks[:] = dist_rocks[:]-rock_positions[:,3]                               # Calculate distance to nearest point of all rocks
@@ -468,6 +480,7 @@ def compute_exomy_reward(root_positions, target_root_positions,
     # resets due to episode length'
     reset = torch.where(progress_buf >= max_episode_length - 1, ones, die)
     reset = torch.where(target_dist >= 8, ones, reset)
+    reset = torch.where(nearest_rock <= 0.22, ones, reset)  # reset if colliding
 
     
     return reward, reset        

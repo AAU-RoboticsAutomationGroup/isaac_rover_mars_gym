@@ -159,7 +159,8 @@ def gaussian_terrain(terrain,kernel_radius=15,max_height=5):#terrain,gaussian_ra
         #terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel] * max_height* 1/terrain.vertical_scale )
 
         # Random height
-        terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel] * random.uniform(-max_height,max_height)* 1/terrain.vertical_scale )
+        #terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel] * random.uniform(-max_height,max_height)* 1/terrain.vertical_scale )
+        terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel]* 3/terrain.vertical_scale )
        # print(HaltonSample[i])
 
     return terrain

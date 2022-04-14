@@ -37,8 +37,19 @@ class Exomy_actual(VecTask):
         self.cfg["env"]["numActions"] = 2
         self.max_effort_vel = 5.2
         self.max_effort_pos = math.pi/2
+
+        # reward scales
+        self.rew_scales = {}
+        self.rew_scales["termination"] = self.cfg["env"]["learn"]["terminalReward"] 
+        self.rew_scales["pos"] = self.cfg["env"]["learn"]["pos_reward"] 
+        self.rew_scales["collision"] = self.cfg["env"]["learn"]["collision_reward"] 
+        self.rew_scales["heading"] = self.cfg["env"]["learn"]["heading_contraint_reward"] 
+        self.rew_scales["torque_driving"] = self.cfg["env"]["learn"]["heading_contraint_reward"] 
+        self.rew_scales["torque_steering"] = self.cfg["env"]["learn"]["torque_reward_driving"] 
+
+
         super().__init__(config=self.cfg, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless)
-        
+
         # Retrieves buffer for Actor root states.
         # position([0:3]), rotation([3:7]), linear velocity([7:10]), and angular velocity([10:13])
         # Buffer has shape (num_environments, num_actors * 13).
@@ -47,7 +58,7 @@ class Exomy_actual(VecTask):
         self.root_tensor = self.gym.acquire_actor_root_state_tensor(self.sim)
         self.dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
         self.location_tensor_gym = self.gym.acquire_rigid_body_state_tensor(self.sim)
-        self.dof_force_tensor_gym = self.gym.acquire_dof_state_tensor(self.sim)
+        self.dof_force_tensor_gym = self.gym.acquire_dof_force_tensor(self.sim)
         
         # Convert buffer to vector, one is created for the robot and for the marker.
         vec_root_tensor = gymtorch.wrap_tensor(self.root_tensor).view(self.num_envs, 2, 13)
@@ -72,8 +83,8 @@ class Exomy_actual(VecTask):
 
         # Previous actions and torques
         self.actions_nn = torch.zeros((self.num_envs, self.cfg["env"]["numActions"], 3), device=self.device)
-        self.steering_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
-        self.driving_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
+        #self.steering_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
+        #self.driving_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
 
         # Marker position
         self.marker_states = vec_root_tensor[:, 1, :]
@@ -146,7 +157,7 @@ class Exomy_actual(VecTask):
         self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
 
         def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
-        terrain = gaussian_terrain(new_sub_terrain(),15,0.1)
+        terrain = gaussian_terrain(new_sub_terrain(),15,5)
         #terrain = gaussian_terrain(terrain,5,1)
         #terrain = gaussian_terrain(terrain,1,0.4)
         #heightfield[0:int(terrain_width/horizontal_scale),:]= gaussian_terrain(new_sub_terrain()).height_field_raw
@@ -295,7 +306,7 @@ class Exomy_actual(VecTask):
                 1,  # Bitwise filter for elements in the same collisionGroup to mask off collision
             )
             self.exomy_handles.append(exomy0_handle)
-
+            self.gym.enable_actor_dof_force_sensors(env0, exomy0_handle)
             
             # Configure DOF properties
             # Set initial DOF states
@@ -338,7 +349,7 @@ class Exomy_actual(VecTask):
         # Spawn exomy at the correct z-height.
         loc = self.env_origins_tensor[env_ids]
         height = height_lookup(self.tensor_map, loc, self.horizontal_scale, self.vertical_scale, self.shift, loc)
-        self.root_states[env_ids, 2] = height+0.15
+        self.root_states[env_ids, 2] = height+0.25
 
         self.dof_states = self.initial_dof_states
         self.gym.set_actor_root_state_tensor_indexed(self.sim,self.root_tensor, gymtorch.unwrap_tensor(actor_indices), num_resets)
@@ -402,7 +413,8 @@ class Exomy_actual(VecTask):
         actions_tensor[12::15]=(motor_velocities[:,3]) #12 #MR DRIVE
         actions_tensor[13::15]=(steering_angles[:,1])  #13 #FR POS
         actions_tensor[14::15]=(motor_velocities[:,1]) #14 #FR DRIVE
-
+        
+        self.actions_nn = torch.cat((torch.reshape(_actions,(self.num_envs, self.cfg["env"]["numActions"], 1)), self.actions_nn), 2)[:,:,0:3]
         '''
         # Code for extracting position and velocity goal over time.
 
@@ -472,7 +484,7 @@ class Exomy_actual(VecTask):
         self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3])
         #print(torch.max(self.elevationMap[2]))
         # Visualize points for robot [0]
-        visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1, self.exo_locations_tensor[:,0:3])
+        # visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1)
 
         self.compute_observations()
         self.compute_rewards()
@@ -494,17 +506,18 @@ class Exomy_actual(VecTask):
         self.exo_locations_tensor[:, 0:2] = self.exo_locations_tensor[:, 0:2] - self.shift
 
         self.rew_buf[:], self.reset_buf[:] = compute_exomy_reward(self.root_positions,
-            self.target_root_positions, self.root_quats, self.root_euler, self.actions_nn, self.driving_torques,
-            self.steering_torques, self.exo_locations_tensor[:, 0:3], self.rock_positions,
+            self.target_root_positions, self.root_quats, self.root_euler, self.actions_nn,
+            self.dof_force_tensor, self.exo_locations_tensor[:, 0:3], self.rock_positions,
             self.reset_buf, self.progress_buf, self.max_episode_length)        
 
 
 @torch.jit.script
-def compute_exomy_reward(root_positions, target_root_positions,
-        root_quats, root_euler, actions_nn, driving_torques, steering_torques, global_location, rock_positions, reset_buf, progress_buf, max_episode_length):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
+def compute_exomy_reward(root_positions, target_root_positions, 
+        root_quats, root_euler, actions_nn, forces, global_location, rock_positions, reset_buf, progress_buf, max_episode_length):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
 
-    zero_reward = 
+    zero_reward = torch.zeros_like(reset_buf)
+    max_reward = torch.ones_like(reset_buf)
     # distance to target
     target_dist = torch.sqrt(torch.square(target_root_positions - root_positions).sum(-1))
     target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
@@ -531,20 +544,27 @@ def compute_exomy_reward(root_positions, target_root_positions,
     dist_rocks = torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0)   # Calculate distance to center of all rocks
     dist_rocks[:] = dist_rocks[:]-rock_positions[:,3]                               # Calculate distance to nearest point of all rocks
     nearest_rock = torch.min(dist_rocks,dim=1)[0]                                   # Find the closest rock to each robot  
-    collision_reward = torch.where(nearest_rock[:] < 0.6, nearest_rock,float(0.0))
-    print(collision_reward)
+    collision_reward = torch.where(nearest_rock[:] < 1, - 1/(1 + ((nearest_rock-0.24)*5)*(nearest_rock-0.24)*5)+0.06,zero_reward)
+    
     # Uprightness 
-
+    # 
 
     # Heading constraint - Ikke køre baglæns
-    
+    _actions_nn = actions_nn[:,0,0]    # Get latest lin_vel
+    heading_contraint_reward = torch.where(_actions_nn < 0, -max_reward, zero_reward)
 
     # Motion constraint - Ikke oscilere på output
+    motion_contraint_reward = torch.abs(actions_nn[:,0,0] - actions_nn[:,0,1])
+    print(motion_contraint_reward)
+    
 
-
-    # Torque reward - Lidt penalty når den kører
-    torque_reward_driving = torch.abs(driving_torques[:,:,0]).mean(dim=1)
-    torque_reward_steering = torch.abs(steering_torques[:,:,0]).mean(dim=1)
+    # Torque reward
+    driving_forces = torch.stack((forces[2::15], forces[4::15], forces[7::15], forces[9::15], forces[12::15], forces[14::15]), dim=1)
+    torque_reward_driving = torch.abs(driving_forces).mean(dim=1)
+    #print(torque_reward_driving[0:5])
+    steering_forces = torch.stack((forces[1::15], forces[3::15], forces[6::15], forces[8::15], forces[11::15], forces[13::15]), dim=1)
+    torque_reward_steering = torch.abs(steering_forces).mean(dim=1)
+    
 
     reward = pos_reward
 
@@ -554,6 +574,8 @@ def compute_exomy_reward(root_positions, target_root_positions,
     reset = torch.where(progress_buf >= max_episode_length - 1, ones, die)
     reset = torch.where(target_dist >= 8, ones, reset)
     reset = torch.where(nearest_rock <= 0.22, ones, reset)  # reset if colliding
-
+    reset = torch.where(torch.abs(root_euler[:,0]) >= 0.78*1.5, ones, reset)  # reset if roll above 45 degrees(radians)
+    reset = torch.where(torch.abs(root_euler[:,1]) >= 0.78*1.5, ones, reset)  # reset if pitch above 45 degrees(radians)
+    
     
     return reward, reset        

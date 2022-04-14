@@ -32,8 +32,8 @@ def load_value(model_name, features=[512,256,128]):
     return model
 
 
-model = load_model('./runs/22-03-29_08-31-01-895159_PPO/checkpoints/3000_policy.pt', features=[512,256,128])
-value = load_value('./runs/22-03-29_08-31-01-895159_PPO/checkpoints/3000_policy.pt', features=[512,256,128])
+model = load_model('./runs/22-04-05_20-20-36-414642_PPO_RELU[256,160,128]/checkpoints/3000_policy.pt', features=[512,256,128])
+value = load_value('./runs/22-04-05_20-20-36-414642_PPO_RELU[256,160,128]/checkpoints/3000_policy.pt', features=[512,256,128])
 a = torch.tensor([ [512.0,512.0,512.0]])
 
 cfg_ppo = PPO_DEFAULT_CONFIG.copy()

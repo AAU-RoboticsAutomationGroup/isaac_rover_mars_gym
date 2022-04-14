@@ -21,6 +21,8 @@ class Exomy_new(VecTask):
         #self.Kinematics = Rover()
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
         self.cfg["env"]["numObservations"] = 3
+        self.cfg["env"]["proprioception"] = 4
+        self.cfg["env"]["exteroception"] = 5
         self.cfg["env"]["numActions"] = 2
         self.max_effort_vel = 5.2
         self.max_effort_pos = math.pi/2
@@ -109,15 +111,8 @@ class Exomy_new(VecTask):
         #    - set up environments
         self._create_envs(self.num_envs, self.cfg["env"]['envSpacing'], int(np.sqrt(self.num_envs)))
 
-        
-
-
-
-
-
     def _create_exomy_asset(self):
         pass
-
 
     def _create_ground_plane(self):
         plane_params = gymapi.PlaneParams()
@@ -146,7 +141,6 @@ class Exomy_new(VecTask):
         self.gym.set_actor_root_state_tensor_indexed(self.sim,self.root_tensor, gymtorch.unwrap_tensor(actor_indices), num_sets)
 
         return actor_indices
-
 
     def _create_envs(self,num_envs,spacing, num_per_row):
        # define plane on which environments are initialized
@@ -307,11 +301,6 @@ class Exomy_new(VecTask):
         
         return torch.unique(torch.cat([target_actor_indices, actor_indices]))
 
-        #Used to reset a single environment
-        
-
-
-
     def pre_physics_step(self, actions):
         # 
         #set_target_ids = (self.progress_buf % 1000 == 0).nonzero(as_tuple=False).squeeze(-1)
@@ -407,8 +396,6 @@ class Exomy_new(VecTask):
         # 
         self.gym.set_dof_velocity_target_tensor(self.sim, gymtorch.unwrap_tensor(actions_tensor)) #)
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(actions_tensor)) #)
-        #forces = gymtorch.unwrap_tensor(actions_tensor)
-        #self.gym.set_dof_actuation_force_tensor(self.sim, forces)
         
     def post_physics_step(self):
         # implement post-physics simulation code here
@@ -454,7 +441,6 @@ class Exomy_new(VecTask):
         self.rew_buf[:], self.reset_buf[:] = compute_exomy_reward(self.root_positions,
             self.target_root_positions, self.root_quats, self.root_euler,
             self.reset_buf, self.progress_buf, self.max_episode_length)        
-
 
 @torch.jit.script
 def compute_exomy_reward(root_positions, target_root_positions,

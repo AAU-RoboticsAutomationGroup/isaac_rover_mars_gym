@@ -60,7 +60,7 @@ def height_lookup(heightmap: torch.Tensor, depth_points: torch.Tensor, horizonta
         heights = heights.reshape([depth_points.size()[0], depth_points.size()[1]])
 
         # Set visualize variable
-        visualize = False
+        visualize = True
         
         # If vizualisation not on, shift Z-coordinates to correct values
         if visualize == False:

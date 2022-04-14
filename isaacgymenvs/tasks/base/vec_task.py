@@ -340,11 +340,9 @@ class VecTask(Env):
         self.extras["time_outs"] = self.timeout_buf.to(self.rl_device)
 
         self.obs_dict["obs"] = torch.clamp(self.obs_buf, -self.clip_obs, self.clip_obs).to(self.rl_device)
-
         # asymmetric actor-critic
         if self.num_states > 0:
             self.obs_dict["states"] = self.get_state()
-
         return self.obs_dict, self.rew_buf.to(self.rl_device), self.reset_buf.to(self.rl_device), self.extras
 
     def zero_actions(self) -> torch.Tensor:

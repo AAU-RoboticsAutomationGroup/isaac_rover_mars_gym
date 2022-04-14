@@ -1,5 +1,6 @@
 
 import math
+from operator import pos
 import numpy as np
 import os
 import torch
@@ -41,10 +42,12 @@ class Exomy_actual(VecTask):
 
         self.root_tensor = self.gym.acquire_actor_root_state_tensor(self.sim)
         self.dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
+        self.location_tensor_gym = self.gym.acquire_rigid_body_state_tensor(self.sim)
         
         # Convert buffer to vector, one is created for the robot and for the marker.
         vec_root_tensor = gymtorch.wrap_tensor(self.root_tensor).view(self.num_envs, 2, 13)
         vec_dof_tensor = gymtorch.wrap_tensor(self.dof_state_tensor).view(self.num_envs, dofs_per_env, 2)
+        self.location_tensor = gymtorch.wrap_tensor(self.location_tensor_gym)[0::20]
         #print(vec_dof_tensor)
         # Position vector for robot
         self.root_states = vec_root_tensor[:, 0, :]
@@ -125,16 +128,20 @@ class Exomy_actual(VecTask):
     def _create_ground_plane(self):
         # Terrain specifications
         print("test")
-        terrain_width = 100 # terrain width [m]
-        terrain_length = 100 # terrain length [m]
-        horizontal_scale = 0.03 # resolution per meter 
+        terrain_width = 30 # terrain width [m]
+        terrain_length = 30 # terrain length [m]
+        horizontal_scale = 0.05 # resolution per meter 
         vertical_scale = 0.005 # vertical resolution [m]
         self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
 
         def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
-        terrain = gaussian_terrain(new_sub_terrain())
+        terrain = gaussian_terrain(new_sub_terrain(),15,0.1)
+        #terrain = gaussian_terrain(terrain,5,1)
+        #terrain = gaussian_terrain(terrain,1,0.4)
         #heightfield[0:int(terrain_width/horizontal_scale),:]= gaussian_terrain(new_sub_terrain()).height_field_raw
-        self.heightfield[0:int(terrain_width/horizontal_scale),:]= add_rocks_terrain(terrain=terrain).height_field_raw
+        rock_heigtfield, self.rock_positions = add_rocks_terrain(terrain=terrain)
+        self.heightfield[0:int(terrain_width/horizontal_scale),:] = rock_heigtfield.height_field_raw
+        print(self.rock_positions.shape)
         vertices, triangles = convert_heightfield_to_trimesh1(self.heightfield, horizontal_scale=horizontal_scale, vertical_scale=vertical_scale, slope_threshold=None)
         self.tensor_map = torch.tensor(self.heightfield, device='cuda:0')
         self.horizontal_scale = horizontal_scale
@@ -438,10 +445,12 @@ class Exomy_actual(VecTask):
         #print(torch.max(self.progress_buf))
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
+        #self.gym.refresh_rigid_body_state_tensor(self.sim)
         self.root_euler = tensor_quat_to_eul(self.root_quats)
 
         # Compute location and rotation(RPY) for root body of each robot
-        self.location_tensor = gymtorch.wrap_tensor(self.gym.acquire_rigid_body_state_tensor(self.sim))[0::20]
+
+        # TODO add offset to the global position
         self.exo_locations_tensor[:, 0:3] = self.location_tensor[:,0:3].add(self.env_origins_tensor)
         exo_rot = tensor_quat_to_eul(self.location_tensor[:,3:7])
         exo_rot[:,2] = torch.atan2(torch.sin(exo_rot[:,2]) * torch.cos(exo_rot[:,1]), torch.cos(exo_rot[:,2]) * torch.cos(exo_rot[:,0])) # Global direction
@@ -451,7 +460,7 @@ class Exomy_actual(VecTask):
         # Lookup heigt at depth point locations.
         self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3])
         # Visualize points for robot [0]
-        # visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], heights[0:1,:], 0.1)
+        visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1)
         #print(self.elevationMap.shape)
         self.compute_observations()
         self.compute_rewards()
@@ -478,16 +487,22 @@ class Exomy_actual(VecTask):
         #print(root_euler)
         #heading_diff = target_heading - root_euler
         #print(heading_diff)
-        
+
+        # TODO remove shift from this formula
+        self.exo_locations_tensor[:, 0:2] = self.exo_locations_tensor[:, 0:2] - self.shift
+
+
+        #print(self.exo_locations_tensor[:, 0:3])
         self.rew_buf[:], self.reset_buf[:] = compute_exomy_reward(self.root_positions,
             self.target_root_positions, self.root_quats, self.root_euler,
+            self.exo_locations_tensor[:, 0:3], self.rock_positions,
             self.reset_buf, self.progress_buf, self.max_episode_length)        
 
 
 @torch.jit.script
 def compute_exomy_reward(root_positions, target_root_positions,
-        root_quats, root_euler, reset_buf, progress_buf, max_episode_length):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
+        root_quats, root_euler, global_location, rock_positions, reset_buf, progress_buf, max_episode_length):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
     # distance to target
     #target_heading = torch.tensor(len(target_root_positions))
     target_dist = torch.sqrt(torch.square(target_root_positions - root_positions).sum(-1))
@@ -506,12 +521,25 @@ def compute_exomy_reward(root_positions, target_root_positions,
     # Collision reward(-)
     # Reward when approaching goal each time step(+/-) lavet
     # Ground slope and dist. nearest obstacle (NASA)
-
+    
     # distance to target
     pos_reward = 1.0 / (1.0 + target_dist * target_dist)
     #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
-
-    # Collision reward
+    #print(torch.unsqueeze(rock_positions,dim=0).shape)
+    #rock_positions=torch.unsqueeze(rock_positions,dim=0)
+   # print(global_location.shape)
+    #print(torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0).shape)
+    #print(torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0)[0])
+    #print(pos_reward[0])
+    # Collision reward - Anton
+    dist_rocks = torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0)   # Calculate distance to center of all rocks
+    dist_rocks[:] = dist_rocks[:]-rock_positions[:,3]                               # Calculate distance to nearest point of all rocks
+    nearest_rock = torch.min(dist_rocks,dim=1)[0]                                   # Find the closest rock to each robot
+    print(nearest_rock)
+   # print(nearest_rock[0])
+    # print()
+    
+    # print(torch.min(a,dim=1)[0][1:4])
 
     # Uprightness 
 

@@ -8,9 +8,11 @@ class Conv(nn.Module):
     def __init__(self,in_channels,out_channels, activation_function="elu"):
         super(Conv,self).__init__()
         self.activation_functions = {
-            "relu" : nn.ReLU(),
             "elu" : nn.ELU(),
-            "leakyrelu" : nn.LeakyReLU()
+            "relu" : nn.ReLU(),
+            "leakyrelu" :nn.LeakyReLU(),
+            "sigmoid" : nn.Sigmoid(),
+            "tanh" : nn.Tanh()
            } 
         self.conv = nn.Sequential(
             nn.Linear(in_channels,out_channels),

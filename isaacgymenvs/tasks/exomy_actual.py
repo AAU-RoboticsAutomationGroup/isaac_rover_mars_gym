@@ -99,7 +99,7 @@ class Exomy_actual(VecTask):
 
         # Depth detection points. Origin is body origin(Can be identified in SolidWorks.)
         exo_depth_points = heightmap_distribution( delta=0.1, limit=1.2,front_heavy=0.0, plot=False) #Uniform
-        print(np.size(exo_depth_points))
+
         # heightmap_distribution( delta=0.07, limit=2,front_heavy=0.012, plot=False) # Weigted little towards front
         # heightmap_distribution( delta=0.06, limit=1.6,front_heavy=0.01, plot=True) # Weigted more towards front
 
@@ -134,7 +134,6 @@ class Exomy_actual(VecTask):
 
     def _create_ground_plane(self):
         # Terrain specifications
-        print("test")
         terrain_width = 30 # terrain width [m]
         terrain_length = 30 # terrain length [m]
         horizontal_scale = 0.05 # resolution per meter 
@@ -148,7 +147,6 @@ class Exomy_actual(VecTask):
         #heightfield[0:int(terrain_width/horizontal_scale),:]= gaussian_terrain(new_sub_terrain()).height_field_raw
         rock_heigtfield, self.rock_positions = add_rocks_terrain(terrain=terrain)
         self.heightfield[0:int(terrain_width/horizontal_scale),:] = rock_heigtfield.height_field_raw
-        print(self.rock_positions.shape)
         vertices, triangles = convert_heightfield_to_trimesh1(self.heightfield, horizontal_scale=horizontal_scale, vertical_scale=vertical_scale, slope_threshold=None)
         self.tensor_map = torch.tensor(self.heightfield, device='cuda:0')
         self.horizontal_scale = horizontal_scale
@@ -167,12 +165,10 @@ class Exomy_actual(VecTask):
     def set_targets(self, env_ids):
         num_sets = len(env_ids)
         # set target position randomly with x, y in (-2, 2) and z in (1, 2)
-        #print("ASDO:JNHSAOJPNHDJNO:HASDJUOIP")
         alpha = 2 * math.pi * torch.rand(num_sets, device=self.device)
         TargetRadius = 3
         TargetCordx = 0
         TargetCordy = 0
-        #print("Updating targets")
         x = TargetRadius * torch.cos(alpha) + TargetCordx
         y = TargetRadius * torch.sin(alpha) + TargetCordy
         self.target_root_positions[env_ids, 0] = x
@@ -212,7 +208,7 @@ class Exomy_actual(VecTask):
         print("Loading asset '%s' from '%s'" % (exomy_asset_file, asset_root))
         exomy_asset = self.gym.load_asset(self.sim, asset_root, exomy_asset_file, asset_options)
         self.num_dof = self.gym.get_asset_dof_count(exomy_asset)
-        #print(self.num_dof)
+
         #################################################
         # get joint limits and ranges for Franka
         exomy_dof_props = self.gym.get_asset_dof_properties(exomy_asset)
@@ -291,7 +287,7 @@ class Exomy_actual(VecTask):
             # gym.set_actor_dof_states(env0, exomy0_handle, default_dof_state, gymapi.STATE_ALL)
             # Set DOF control properties
             self.gym.set_actor_dof_properties(env0, exomy0_handle, exomy_dof_props)
-            #print(self.gym.get_actor_dof_properties((env0, exomy0_handle))
+
 
             # Spawn marker
             marker_handle = self.gym.create_actor(env0, marker_asset, default_pose, "marker", i, 1, 1)
@@ -435,15 +431,12 @@ class Exomy_actual(VecTask):
         # Set 
         self.gym.set_dof_velocity_target_tensor(self.sim, gymtorch.unwrap_tensor(actions_tensor)) #)
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(actions_tensor)) #)
-        #forces = gymtorch.unwrap_tensor(actions_tensor)
-        #self.gym.set_dof_actuation_force_tensor(self.sim, forces)
         
     def post_physics_step(self):
         # implement post-physics simulation code here
         #    - e.g. compute reward, compute observations
         
         self.progress_buf += 1
-        #print(torch.max(self.progress_buf))
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
         self.gym.refresh_dof_force_tensor(self.sim)
@@ -463,9 +456,6 @@ class Exomy_actual(VecTask):
         self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3])
         # Visualize points for robot [0]
         visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1)
-        #print(self.elevationMap.shape)
-
-        print(self.dof_force_tensor)
 
         self.compute_observations()
         self.compute_rewards()
@@ -476,8 +466,6 @@ class Exomy_actual(VecTask):
         self.obs_buf[...,self._num_observations:(self._num_observations+self._num_camera_inputs)] = self.elevationMap
         #self.obs_buf[..., 3:6] = self.root_linvels
         #self.obs_buf[..., 6:9] = self.root_angvels
-        #print(self.obs_buf[0, 2:5])
-        #print(tgm.quaternion_to_angle_axis(self.root_quats)[0])
         # self.obs_buf[..., 0:3] = (self.target_root_positions - self.root_positions) / 3
         # self.obs_buf[..., 3:7] = self.root_quats
         # self.obs_buf[..., 7:10] = self.root_linvels / 2
@@ -485,19 +473,9 @@ class Exomy_actual(VecTask):
         return self.obs_buf
 
     def compute_rewards(self):
-
-        
-        #print(target_dist)
-        #print(target_heading)
-        #print(root_euler)
-        #heading_diff = target_heading - root_euler
-        #print(heading_diff)
-        
         # TODO remove shift from this formula
         self.exo_locations_tensor[:, 0:2] = self.exo_locations_tensor[:, 0:2] - self.shift
 
-
-        #print(self.exo_locations_tensor[:, 0:3])
         self.rew_buf[:], self.reset_buf[:] = compute_exomy_reward(self.root_positions,
             self.target_root_positions, self.root_quats, self.root_euler, self.actions_nn, self.driving_torques,
             self.steering_torques, self.exo_locations_tensor[:, 0:3], self.rock_positions,
@@ -509,10 +487,9 @@ def compute_exomy_reward(root_positions, target_root_positions,
         root_quats, root_euler, actions_nn, driving_torques, steering_torques, global_location, rock_positions, reset_buf, progress_buf, max_episode_length):
     # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
     # distance to target
-    #target_heading = torch.tensor(len(target_root_positions))
     target_dist = torch.sqrt(torch.square(target_root_positions - root_positions).sum(-1))
     target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
-    #print(torch.max(heading_diff))
+
 
     eps = 1e-7
 
@@ -530,23 +507,10 @@ def compute_exomy_reward(root_positions, target_root_positions,
     # distance to target
     pos_reward = 1.0 / (1.0 + target_dist * target_dist)
     #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
-
-    # Collision reward #Anton
-    #print(torch.unsqueeze(rock_positions,dim=0).shape)
-    #rock_positions=torch.unsqueeze(rock_positions,dim=0)
-    #print(global_location.shape)
-    #print(torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0).shape)
-    #print(torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0)[0])
-    #print(pos_reward[0])
     # Collision reward - Anton
     dist_rocks = torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0)   # Calculate distance to center of all rocks
     dist_rocks[:] = dist_rocks[:]-rock_positions[:,3]                               # Calculate distance to nearest point of all rocks
     nearest_rock = torch.min(dist_rocks,dim=1)[0]                                   # Find the closest rock to each robot
-    print(nearest_rock)
-   # print(nearest_rock[0])
-    # print()
-    
-    # print(torch.min(a,dim=1)[0][1:4])
 
     # Uprightness 
 
@@ -559,8 +523,6 @@ def compute_exomy_reward(root_positions, target_root_positions,
     torque_reward_steering = torch.abs(steering_torques[:,:,0]).mean(dim=1)
 
     reward = pos_reward
-    #print(reward[0:10])
-    #print((torch.max(reward), torch.argmax(reward)))
 
     ones = torch.ones_like(reset_buf)
     die = torch.zeros_like(reset_buf)

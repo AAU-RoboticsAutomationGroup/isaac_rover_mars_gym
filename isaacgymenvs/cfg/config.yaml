@@ -44,7 +44,7 @@ headless: False
 
 # set default task and default training config based on task
 defaults:
-  - task: Exomy_actual
+  - task: Exomy
   - train: ${task}PPO
   - hydra/job_logging: disabled
 

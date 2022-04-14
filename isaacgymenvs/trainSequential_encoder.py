@@ -13,7 +13,7 @@ from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.noises.torch import GaussianNoise, OrnsteinUhlenbeckNoise
 from skrl.trainers.torch import SequentialTrainer
 
-env = load_isaacgym_env_preview3(task_name="Exomy_actual")
+env = load_isaacgym_env_preview3(task_name="Exomy")
 
 env = wrap_env(env)
 

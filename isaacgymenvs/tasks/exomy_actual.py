@@ -1,22 +1,26 @@
 
 import math
-from operator import pos
-import numpy as np
 import os
-import torch
-import xml.etree.ElementTree as ET
 import random
-from utils.terrain_generation import *
-from utils.torch_jit_utils import *
-from tasks.base.vec_task import VecTask
+import xml.etree.ElementTree as ET
+from operator import pos
+
+import numpy as np
+import torch
 #from utils.kinematics import Rover
 import torchgeometry as tgm
-from isaacgym import gymutil, gymtorch, gymapi
+from isaacgym import gymapi, gymtorch, gymutil
 from scipy.spatial.transform import Rotation as R
+from utils.exo_depth_observation import (exo_depth_observation, height_lookup,
+                                         visualize_points)
+from utils.heigtmap_distribution import heightmap_distribution
 from utils.kinematics import Ackermann
 from utils.tensor_quat_to_euler import tensor_quat_to_eul
-from utils.exo_depth_observation import exo_depth_observation, height_lookup, visualize_points
-from utils.heigtmap_distribution import heightmap_distribution
+from utils.terrain_generation import *
+from utils.torch_jit_utils import *
+
+from tasks.base.vec_task import VecTask
+
 
 class Exomy_actual(VecTask):
 
@@ -499,6 +503,8 @@ class Exomy_actual(VecTask):
 def compute_exomy_reward(root_positions, target_root_positions,
         root_quats, root_euler, actions_nn, driving_torques, steering_torques, global_location, rock_positions, reset_buf, progress_buf, max_episode_length):
     # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
+
+    zero_reward = 
     # distance to target
     target_dist = torch.sqrt(torch.square(target_root_positions - root_positions).sum(-1))
     target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
@@ -524,11 +530,12 @@ def compute_exomy_reward(root_positions, target_root_positions,
     # Collision reward - Anton
     dist_rocks = torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0)   # Calculate distance to center of all rocks
     dist_rocks[:] = dist_rocks[:]-rock_positions[:,3]                               # Calculate distance to nearest point of all rocks
-    nearest_rock = torch.min(dist_rocks,dim=1)[0]                                   # Find the closest rock to each robot
-
+    nearest_rock = torch.min(dist_rocks,dim=1)[0]                                   # Find the closest rock to each robot  
+    collision_reward = torch.where(nearest_rock[:] < 0.6, nearest_rock,float(0.0))
+    print(collision_reward)
     # Uprightness 
 
-    
+
     # Heading constraint - Ikke køre baglæns
     
 

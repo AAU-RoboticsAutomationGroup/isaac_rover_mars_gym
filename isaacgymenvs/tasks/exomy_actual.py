@@ -451,7 +451,7 @@ class Exomy_actual(VecTask):
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
         self.gym.refresh_dof_force_tensor(self.sim)
-        #self.gym.refresh_rigid_body_state_tensor(self.sim)
+        self.gym.refresh_rigid_body_state_tensor(self.sim)
         self.root_euler = tensor_quat_to_eul(self.root_quats)
 
         # Compute location and rotation(RPY) for root body of each robot
@@ -463,10 +463,12 @@ class Exomy_actual(VecTask):
         
         # Compute depth point locations in x,y from robot orientation and location.
         depth_point_locations = exo_depth_observation(exo_rot, self.exo_locations_tensor[:,0:3], self.exo_depth_points_tensor)
+        #print(depth_point_locations)
         # Lookup heigt at depth point locations.
         self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3])
+        #print(torch.max(self.elevationMap[2]))
         # Visualize points for robot [0]
-        visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1)
+        visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1, self.exo_locations_tensor[:,0:3])
 
         self.compute_observations()
         self.compute_rewards()
@@ -526,9 +528,12 @@ def compute_exomy_reward(root_positions, target_root_positions,
 
     # Uprightness 
 
+    
     # Heading constraint - Ikke køre baglæns
     
+
     # Motion constraint - Ikke oscilere på output
+
 
     # Torque reward - Lidt penalty når den kører
     torque_reward_driving = torch.abs(driving_torques[:,:,0]).mean(dim=1)

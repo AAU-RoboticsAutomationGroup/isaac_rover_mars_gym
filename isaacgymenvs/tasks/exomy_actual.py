@@ -46,8 +46,10 @@ class Exomy_actual(VecTask):
         self.rew_scales["heading"] = self.cfg["env"]["learn"]["heading_contraint_reward"] 
         self.rew_scales["torque_driving"] = self.cfg["env"]["learn"]["heading_contraint_reward"] 
         self.rew_scales["torque_steering"] = self.cfg["env"]["learn"]["torque_reward_driving"] 
-
-
+        self.rew_scales["uprightness"] = self.cfg["env"]["learn"]["uprightness_reward"]
+        self.rew_scales["motion_contraint"] = self.cfg["env"]["learn"]["motion_contraint_reward"] 
+        
+        
         super().__init__(config=self.cfg, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless)
 
         # Retrieves buffer for Actor root states.
@@ -150,8 +152,8 @@ class Exomy_actual(VecTask):
 
     def _create_ground_plane(self):
         # Terrain specifications
-        terrain_width = 30 # terrain width [m]
-        terrain_length = 30 # terrain length [m]
+        terrain_width = 50 # terrain width [m]
+        terrain_length = 50 # terrain length [m]
         horizontal_scale = 0.05 # resolution per meter 
         vertical_scale = 0.005 # vertical resolution [m]
         self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
@@ -504,72 +506,69 @@ class Exomy_actual(VecTask):
     def compute_rewards(self):
         # TODO remove shift from this formula
         self.exo_locations_tensor[:, 0:2] = self.exo_locations_tensor[:, 0:2] - self.shift
-
         self.rew_buf[:], self.reset_buf[:] = compute_exomy_reward(self.root_positions,
             self.target_root_positions, self.root_quats, self.root_euler, self.actions_nn,
             self.dof_force_tensor, self.exo_locations_tensor[:, 0:3], self.rock_positions,
-            self.reset_buf, self.progress_buf, self.max_episode_length)        
+            self.reset_buf, self.progress_buf, self.rew_scales, self.max_episode_length)        
 
 
 @torch.jit.script
 def compute_exomy_reward(root_positions, target_root_positions, 
-        root_quats, root_euler, actions_nn, forces, global_location, rock_positions, reset_buf, progress_buf, max_episode_length):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float) -> Tuple[Tensor, Tensor]
+        root_quats, root_euler, actions_nn, forces, global_location, rock_positions, reset_buf, progress_buf, rew_scales, max_episode_length):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Dict[str,float], float) -> Tuple[Tensor, Tensor]
 
+    # Tool tensors
     zero_reward = torch.zeros_like(reset_buf)
     max_reward = torch.ones_like(reset_buf)
-    # distance to target
+    ones = torch.ones_like(reset_buf)
+    die = torch.zeros_like(reset_buf)
+    
+    # Distance to target
     target_dist = torch.sqrt(torch.square(target_root_positions - root_positions).sum(-1))
     target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
 
+    # eps = 1e-7
 
-    eps = 1e-7
-
-    dot =  ((target_vector[..., 0] * torch.cos(root_euler[..., 2] - (math.pi/2))) + (target_vector[..., 1] * torch.sin(root_euler[..., 2] - (math.pi/2)))) / ((torch.sqrt(torch.square(target_vector[..., 0]) + torch.square(target_vector[..., 1]))) * torch.sqrt(torch.square(torch.cos(root_euler[..., 2] - (math.pi/2))) + torch.square(torch.sin(root_euler[..., 2] - (math.pi/2)))))
-    angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
-    heading_diff = torch.arccos(angle)
-
-    # Constraint Reward(-) ( To avoid reversing)
-    # Motion Reward(-) (do reduce oscillation output)
-    # Torque Reward (-)
-    # Collision reward(-)
-    # Reward when approaching goal each time step(+/-) lavet
-    # Ground slope and dist. nearest obstacle (NASA)
-
-    # distance to target
-    pos_reward = 1.0 / (1.0 + target_dist * target_dist)
+    # dot =  ((target_vector[..., 0] * torch.cos(root_euler[..., 2] - (math.pi/2))) + (target_vector[..., 1] * torch.sin(root_euler[..., 2] - (math.pi/2)))) / ((torch.sqrt(torch.square(target_vector[..., 0]) + torch.square(target_vector[..., 1]))) * torch.sqrt(torch.square(torch.cos(root_euler[..., 2] - (math.pi/2))) + torch.square(torch.sin(root_euler[..., 2] - (math.pi/2)))))
+    # angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
+    # heading_diff = torch.arccos(angle)
     #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
+    
+    # distance to target
+    pos_reward = (1.0 / (1.0 + target_dist * target_dist)-0.3) * rew_scales['pos']
+
 
     # Collision reward - Anton
     dist_rocks = torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0)   # Calculate distance to center of all rocks
     dist_rocks[:] = dist_rocks[:]-rock_positions[:,3]                               # Calculate distance to nearest point of all rocks
     nearest_rock = torch.min(dist_rocks,dim=1)[0]                                   # Find the closest rock to each robot  
-    collision_reward = torch.where(nearest_rock[:] < 1, - 1/(1 + ((nearest_rock-0.24)*5)*(nearest_rock-0.24)*5)+0.06,zero_reward)
+    collision_func = - 0.94/(1 + torch.square((nearest_rock-0.24)*5)+0.06)
+    collision_penalty = torch.where(nearest_rock[:] < 1, collision_func ,zero_reward) * rew_scales['collision']
     
     # Uprightness 
-    # 
+    pitch = (((1)/(1+(torch.abs(root_euler[:,0])-0.78)**(2)))-0.73) * ((1)/(0.27))
+    roll = (((1)/(1+(torch.abs(root_euler[:,1])-0.78)**(2)))-0.73) * ((1)/(0.27))
+    pitch_reward = torch.where(torch.abs(root_euler[:,0]) > 0.1745, pitch, zero_reward)
+    roll_reward = torch.where(torch.abs(root_euler[:,1]) > 0.1745, roll, zero_reward)
+    uprightness_penalty = -((pitch_reward + roll_reward) / 2) * rew_scales["uprightness"]
 
     # Heading constraint - Ikke køre baglæns
     _actions_nn = actions_nn[:,0,0]    # Get latest lin_vel
-    heading_contraint_reward = torch.where(_actions_nn < 0, -max_reward, zero_reward)
+    heading_contraint_penalty = torch.where(_actions_nn < 0, -max_reward, zero_reward) * rew_scales["heading"]
 
     # Motion constraint - Ikke oscilere på output
-    motion_contraint_reward = torch.abs(actions_nn[:,0,0] - actions_nn[:,0,1])
-    print(motion_contraint_reward)
+    motion_contraint_penalty = -torch.abs(actions_nn[:,0,0] - actions_nn[:,0,1]) * rew_scales["motion_contraint"]
     
-
     # Torque reward
     driving_forces = torch.stack((forces[2::15], forces[4::15], forces[7::15], forces[9::15], forces[12::15], forces[14::15]), dim=1)
-    torque_reward_driving = torch.abs(driving_forces).mean(dim=1)
-    #print(torque_reward_driving[0:5])
     steering_forces = torch.stack((forces[1::15], forces[3::15], forces[6::15], forces[8::15], forces[11::15], forces[13::15]), dim=1)
-    torque_reward_steering = torch.abs(steering_forces).mean(dim=1)
-    
+    torque_penalty_driving = -torch.abs(driving_forces).sum(dim=1) * rew_scales['torque_driving']
+    torque_penalty_steering = -torch.abs(steering_forces).sum(dim=1) * rew_scales['torque_steering']
 
-    reward = pos_reward
+    reward = pos_reward + collision_penalty + uprightness_penalty + heading_contraint_penalty + motion_contraint_penalty + torque_penalty_driving + torque_penalty_steering
 
-    ones = torch.ones_like(reset_buf)
-    die = torch.zeros_like(reset_buf)
+
+
     # resets due to episode length'
     reset = torch.where(progress_buf >= max_episode_length - 1, ones, die)
     reset = torch.where(target_dist >= 8, ones, reset)

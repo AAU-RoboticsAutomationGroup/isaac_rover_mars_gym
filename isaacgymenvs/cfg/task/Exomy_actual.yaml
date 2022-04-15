@@ -19,20 +19,21 @@ env:
     # rewards
     terminalReward: 0
     pos_reward: 1.0
-    collision_reward: 0.5
-    heading_contraint_reward: 0.05
-    torque_reward_driving: 0.05
-    torque_reward_steering: 0.05 #-1.
+    collision_reward: 0 #0.3
+    heading_contraint_reward: 0.05 #0.05
+    torque_reward_driving: 0.0 #0.0005
+    torque_reward_steering: 0.0  #0.0005 #-1.
+    uprightness_reward: 0.0 #0.0005 # -0.000025
+    motion_contraint_reward: 0.0 #0.005
 
-
-    torqueRewardScale: -0.00002 # -0.000025
-    jointAccRewardScale: -0.0005 # -0.0025
-    baseHeightRewardScale: -0.0 #5
-    feetAirTimeRewardScale:  1.0
-    kneeCollisionRewardScale: -0.25 
-    feetStumbleRewardScale: -0. #-2.0
-    actionRateRewardScale: -0.01
-    # cosmetics
+    # torqueRewardScale: -0.00002 # -0.000025
+    # jointAccRewardScale: -0.0005 # -0.0025
+    # baseHeightRewardScale: -0.0 #5
+    # feetAirTimeRewardScale:  1.0
+    # kneeCollisionRewardScale: -0.25 
+    # feetStumbleRewardScale: -0. #-2.0
+    # actionRateRewardScale: -0.01
+    # # cosmetics
 sim:
   dt: 0.05
   substeps: 2

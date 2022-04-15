@@ -1,4 +1,5 @@
-from utils.model import Policy, Value
+#from utils.model import Policy, Value
+from learning.model import StochasticActor, StochasticCritic,StochasticActorHeightmap
 import torch
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from typing import Union
@@ -14,7 +15,7 @@ def load_checkpoint(checkpoint, model):
 def load_model(model_name, features=[512,256,128]):
     observation_space = Box(-torch.inf,torch.inf,(3,))
     action_space = Box(-1.0,1.0,(2,))
-    model = Policy(observation_space=observation_space, action_space=action_space, features=features)
+    model = StochasticActorHeightmap(observation_space=observation_space, action_space=action_space, network_features=features)
     checkpoint = torch.load(model_name)
    # model.load_state_dict(checkpoint['state_dict'])
     model.eval()
@@ -24,7 +25,7 @@ def load_model(model_name, features=[512,256,128]):
 def load_value(model_name, features=[512,256,128]):
     observation_space = Box(-torch.inf,torch.inf,(3,))
     action_space = Box(-1.0,1.0,(2,))
-    model = Value(observation_space=observation_space, action_space=action_space, features=features)
+    model = StochasticCritic(observation_space=observation_space, action_space=action_space, features=features)
     checkpoint = torch.load(model_name)
    # model.load_state_dict(checkpoint['state_dict'])
    # model.eval()
@@ -32,8 +33,8 @@ def load_value(model_name, features=[512,256,128]):
     return model
 
 
-model = load_model('./runs/22-03-29_08-31-01-895159_PPO/checkpoints/3000_policy.pt', features=[512,256,128])
-value = load_value('./runs/22-03-29_08-31-01-895159_PPO/checkpoints/3000_policy.pt', features=[512,256,128])
+model = load_model('./runs/ppoActor[512, 256, 128]relu_Critic[128, 64]relu_Encoder[80, 60]relu_test1_step100000/checkpoints/97000_policy.pt', features=[512,256,128])
+value = load_value('./runs/ppoActor[512, 256, 128]relu_Critic[128, 64]relu_Encoder[80, 60]relu_test1_step100000/checkpoints/97000_policy.pt', features=[128,64])
 a = torch.tensor([ [512.0,512.0,512.0]])
 
 cfg_ppo = PPO_DEFAULT_CONFIG.copy()

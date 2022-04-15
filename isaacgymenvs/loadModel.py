@@ -1,4 +1,5 @@
-from utils.model import Policy, Value
+#from utils.model import Policy, Value
+from learning.model import StochasticActor, StochasticCritic,StochasticActorHeightmap
 import torch
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from typing import Union

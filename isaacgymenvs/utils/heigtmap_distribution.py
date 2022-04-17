@@ -13,29 +13,29 @@ def heightmap_distribution( delta=0, front_heavy=0, limit=3, plot=True):
         print("Need delta value!")
         exit()
 
-    x = 0.296
-    while x < limit:
+    y = 0.296
+    while y < limit:
         
-        y = 0
+        x = 0
 
         delta += front_heavy
 
-        while y < limit_at_x(x):
+        while x < limit_at_x(y):
             
-            if y == 0:
-                point_distribution.append([x, y])
+            if x == 0:
+                point_distribution.append([-x, -y])
             else:
-                point_distribution.append([x, y])
+                point_distribution.append([-x, -y])
                 point_distribution.append([x, -y])
             
-            y += delta
+            x += delta
 
-        x += delta
+        y += delta
 
     point_distribution = np.round(point_distribution, 4)
     
-    print("Distribution created:")
-    print(np.shape(point_distribution))
+    #print("Distribution created:")
+    #print(np.shape(point_distribution))
     #print(distribution)
 
     if plot == True:

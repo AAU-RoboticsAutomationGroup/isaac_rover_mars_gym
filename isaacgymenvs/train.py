@@ -1,116 +1,81 @@
-# train.py
-# Script to train policies in Isaac Gym
-#
-# Copyright (c) 2018-2021, NVIDIA Corporation
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
-#
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
-#
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
-#
-# 3. Neither the name of the copyright holder nor the names of its
-#    contributors may be used to endorse or promote products derived from
-#    this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 import isaacgym
 
-import os
-import hydra
-from omegaconf import DictConfig, OmegaConf
-from hydra.utils import to_absolute_path
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
-from utils.reformat import omegaconf_to_dict, print_dict
-from utils.rlgames_utils import RLGPUEnv, RLGPUAlgoObserver, get_rlgames_env_creator
+# Import the skrl components to build the RL system
+from skrl.models.torch import GaussianModel, DeterministicModel
+from skrl.memories.torch import RandomMemory
+from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
+from skrl.trainers.torch import SequentialTrainer
+from skrl.envs.torch import wrap_env
+from skrl.envs.torch import load_isaacgym_env_preview2, load_isaacgym_env_preview3
+from learning.model import StochasticActor, StochasticCritic
+from gym.spaces import Box
+from skrl.utils.model_instantiators import deterministic_model, Shape
 
-from utils.utils import set_np_formatting, set_seed
+# Load and wrap the Isaac Gym environment.
+# The following lines are intended to support both versions (preview 2 and 3). 
+# It tries to load from preview 3, but if it fails, it will try to load from preview 2
+env = load_isaacgym_env_preview3(task_name="Exomy_actual")
 
-from rl_games.common import env_configurations, vecenv
-from rl_games.torch_runner import Runner
+env = wrap_env(env)
 
-import yaml
+device = env.device
+for i in range(0,3):
+
+    # Instantiate a RandomMemory as rollout buffer (any memory can be used for this)
+    memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=device)
 
 
-## OmegaConf & Hydra Config
+    # Instantiate the agent's models (function approximators).
+    # PPO requires 2 models, visit its documentation for more details
+    # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#spaces-and-models
+    models_ppo = {  "policy": StochasticActor(env.observation_space, env.action_space, network_features=[256,160,128], activation_function="relu"),
+                    "value": StochasticCritic(env.observation_space, env.action_space, features=[256,160,128], activation_function="relu")}
 
-# Resolvers used in hydra configs (see https://omegaconf.readthedocs.io/en/2.1_branch/usage.html#resolvers)
-OmegaConf.register_new_resolver('eq', lambda x, y: x.lower()==y.lower())
-OmegaConf.register_new_resolver('contains', lambda x, y: x.lower() in y.lower())
-OmegaConf.register_new_resolver('if', lambda pred, a, b: a if pred else b)
-# allows us to resolve default arguments which are copied in multiple places in the config. used primarily for
-# num_ensv
-OmegaConf.register_new_resolver('resolve_default', lambda default, arg: default if arg=='' else arg)
+    # Initialize the models' parameters (weights and biases) using a Gaussian distribution
+    for model in models_ppo.values():
+        model.init_parameters(method_name="normal_", mean=0.0, std=0.1)   
 
-@hydra.main(config_name="config", config_path="./cfg")
-def launch_rlg_hydra(cfg: DictConfig):
 
-    # ensure checkpoints can be specified as relative paths
-    if cfg.checkpoint:
-        cfg.checkpoint = to_absolute_path(cfg.checkpoint)
+    # Configure and instantiate the agent.
+    # Only modify some of the default configuration, visit its documentation to see all the options
+    # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#configuration-and-hyperparameters
+    cfg_ppo = PPO_DEFAULT_CONFIG.copy()
+    cfg_ppo["rollouts"] = 16
+    cfg_ppo["learning_epochs"] = 4
+    cfg_ppo["mini_batches"] = 2
+    cfg_ppo["discount_factor"] = 0.99
+    cfg_ppo["lambda"] = 0.99
+    cfg_ppo["policy_learning_rate"] = 0.0003
+    cfg_ppo["value_learning_rate"] = 0.0003
+    cfg_ppo["random_timesteps"] = 0
+    cfg_ppo["learning_starts"] = 0
+    cfg_ppo["grad_norm_clip"] = 1.0
+    cfg_ppo["ratio_clip"] = 0.2
+    cfg_ppo["value_clip"] = 0.2
+    cfg_ppo["clip_predicted_values"] = True
+    cfg_ppo["entropy_loss_scale"] = 0.0
+    cfg_ppo["value_loss_scale"] = 1.0
+    cfg_ppo["kl_threshold"] = 0.008
+    # logging to TensorBoard and write checkpoints each 120 and 3000 timesteps respectively
+    cfg_ppo["experiment"]["write_interval"] = 120
+    cfg_ppo["experiment"]["checkpoint_interval"] = 3000
 
-    cfg_dict = omegaconf_to_dict(cfg)
-    print_dict(cfg_dict)
+    agent = PPO(models=models_ppo,
+                memory=memory, 
+                cfg=cfg_ppo, 
+                observation_space=env.observation_space, 
+                action_space=env.action_space,
+                device=device)
 
-    # set numpy formatting for printing only
-    set_np_formatting()
 
-    # sets seed. if seed is -1 will pick a random one
-    cfg.seed = set_seed(cfg.seed, torch_deterministic=cfg.torch_deterministic)
+    # Configure and instantiate the RL trainer
+    cfg_trainer = {"timesteps": 30000, "headlesAs": True}
+    trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
-    # `create_rlgpu_env` is environment construction function which is passed to RL Games and called internally.
-    # We use the helper function here to specify the environment config.
-    create_rlgpu_env = get_rlgames_env_creator(
-        omegaconf_to_dict(cfg.task),
-        cfg.task_name,
-        cfg.sim_device,
-        cfg.rl_device,
-        cfg.graphics_device_id,
-        cfg.headless,
-        multi_gpu=cfg.multi_gpu,
-    )
-
-    # register the rl-games adapter to use inside the runner
-    vecenv.register('RLGPU',
-                    lambda config_name, num_actors, **kwargs: RLGPUEnv(config_name, num_actors, **kwargs))
-    env_configurations.register('rlgpu', {
-        'vecenv_type': 'RLGPU',
-        'env_creator': lambda **kwargs: create_rlgpu_env(**kwargs),
-    })
-
-    rlg_config_dict = omegaconf_to_dict(cfg.train)
-
-    # convert CLI arguments into dictionory
-    # create runner and set the settings
-    runner = Runner(RLGPUAlgoObserver())
-    runner.load(rlg_config_dict)
-    runner.reset()
-
-    # dump config dict
-    experiment_dir = os.path.join('runs', cfg.train.params.config.name)
-    os.makedirs(experiment_dir, exist_ok=True)
-    with open(os.path.join(experiment_dir, 'config.yaml'), 'w') as f:
-        f.write(OmegaConf.to_yaml(cfg))
-
-    runner.run({
-        'train': not cfg.test,
-        'play': cfg.test,
-    })
-
-if __name__ == "__main__":
-    launch_rlg_hydra()
+    # start training
+    trainer.train()
+    print("Done1")

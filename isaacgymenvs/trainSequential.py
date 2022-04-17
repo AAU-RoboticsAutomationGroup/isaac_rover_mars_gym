@@ -5,7 +5,7 @@ from omegaconf import DictConfig, OmegaConf
 from skrl.envs.torch import wrap_env
 from skrl.envs.torch import load_isaacgym_env_preview2, load_isaacgym_env_preview3
 from skrl.memories.torch import RandomMemory
-from learning.model import StochasticActor, StochasticCritic, DeterministicActor, DeterministicCritic, StochasticActorHeightmap
+from learning.model import StochasticActor, StochasticCritic, DeterministicActor, DeterministicCritic
 from skrl.agents.torch.ddpg import DDPG, DDPG_DEFAULT_CONFIG
 from skrl.agents.torch.td3 import TD3, TD3_DEFAULT_CONFIG
 from skrl.agents.torch.sac import SAC, SAC_DEFAULT_CONFIG
@@ -24,7 +24,7 @@ device = env.device
 #@hydra.main(config_path="./cfg", config_name="config")
 def run_tests():
     #config = OmegaConf.to_yaml(cfg)
-    path = 'cfg/tests/test6.yaml'
+    path = 'cfg/tests/test.yaml'
     cfg = OmegaConf.load(path)
     timesteps = 100000
     agent = []
@@ -51,7 +51,7 @@ def get_model(config):
     if config['algorithm'] == 'ppo':
         # PPO requires 2 models, visit its documentation for more details
         # https://skrl.readthedocs.io/en/laconfig/modules/skrl.agents.ppo.html#spaces-and-models
-        models = {  "policy": StochasticActorHeightmap(env.observation_space, env.action_space, network_features=config['actor_mlp'], encoder_features=config['encoder_mlp'], activation_function=config['activation_function']),
+        models = {  "policy": StochasticActor(env.observation_space, env.action_space, features=config['actor_mlp'], activation_function=config['activation_function']),
                     "value": StochasticCritic(env.observation_space, env.action_space, features=config['critic_mlp'], activation_function=config['activation_function_critic'])}
 
         # Initialize the models' parameters (weights and biases) using a Gaussian distribution

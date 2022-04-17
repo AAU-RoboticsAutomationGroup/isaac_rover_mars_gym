@@ -11,7 +11,7 @@ from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.trainers.torch import SequentialTrainer
 from skrl.envs.torch import wrap_env
 from skrl.envs.torch import load_isaacgym_env_preview2, load_isaacgym_env_preview3
-from utils.model import StochasticActor, StochasticCritic
+from learning.model import StochasticActor, StochasticCritic,StochasticActorHeightmap, DeterministicHeightmap
 from gym.spaces import Box
 from skrl.utils.model_instantiators import deterministic_model, Shape
 
@@ -32,15 +32,15 @@ for i in range(0,3):
     # Instantiate the agent's models (function approximators).
     # PPO requires 2 models, visit its documentation for more details
     # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#spaces-and-models
-    models_ppo = {  "policy": StochasticActor(env.observation_space, env.action_space, features=[256,160,128], activation_function="relu"),
-                    "value": StochasticCritic(env.observation_space, env.action_space, features=[256,160,128], activation_function="relu")}
+    models_ppo = {  "policy": StochasticActorHeightmap(env.observation_space, env.action_space, network_features=[512,256,128], encoder_features=[80,60], activation_function="relu"),
+                    "value": DeterministicHeightmap(env.observation_space, env.action_space, network_features=[128,64], encoder_features=[80,60] ,activation_function="relu")}
 
     # Initialize the models' parameters (weights and biases) using a Gaussian distribution
     for model in models_ppo.values():
         model.init_parameters(method_name="normal_", mean=0.0, std=0.1)   
 
 
-    # Configure and instantiate the agent.
+    # Configure and instantiate the agent.z
     # Only modify some of the default configuration, visit its documentation to see all the options
     # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#configuration-and-hyperparameters
     cfg_ppo = PPO_DEFAULT_CONFIG.copy()
@@ -63,7 +63,7 @@ for i in range(0,3):
     # logging to TensorBoard and write checkpoints each 120 and 3000 timesteps respectively
     cfg_ppo["experiment"]["write_interval"] = 120
     cfg_ppo["experiment"]["checkpoint_interval"] = 3000
-
+    cfg_ppo["experiment"]["experiment_name"] = "REMOVEl80l60"
     agent = PPO(models=models_ppo,
                 memory=memory, 
                 cfg=cfg_ppo, 
@@ -73,7 +73,7 @@ for i in range(0,3):
 
 
     # Configure and instantiate the RL trainer
-    cfg_trainer = {"timesteps": 30000, "headlesAs": True}
+    cfg_trainer = {"timesteps": 1000000, "headlesAs": True}
     trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
 
     # start training

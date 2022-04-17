@@ -5,6 +5,8 @@ from isaacgym import gymutil, gymapi
 from isaacgym.terrain_utils import *
 from scipy.stats import qmc
 import random
+import torch
+
 def cfa(cfa: float, rock_diameter: float):
     # https://agupubs.onlinelibrary.wiley.com/doi/pdfdirect/10.1029/96JE03319?download=true
     # https://www.researchgate.net/publication/340235161_Geographic_information_system_based_detection_and_quantification_of_boulders_using_HiRISE_imagery_a_case_study_in_Jezero_Crater
@@ -14,55 +16,105 @@ def cfa(cfa: float, rock_diameter: float):
     return Fk(rock_diameter,cfa)
 
 def add_rocks_terrain(terrain, rock_height = (0.1,0.2)):
-    k = 0.15    # total fractional area covered by rocks
+    k = 0.4
+    #k = 0.15    # total fractional area covered by rocks
     #sample_size = int(0.5 / terrain.horizontal_scale)
     #probs = np.arange(terrain.horizontal_scale, sample_size, terrain.horizontal_scale)
-    n_rocks = int(terrain.length * terrain.width * cfa(k,rock_diameter=0.1))
-    
+    rock = torch.empty(1,4,device="cuda:0") # [x, y, z, radius]
+    rocks = torch.empty(0,4,device="cuda:0")
+    scale = terrain.horizontal_scale
+    num_rock_sizes = int(0.5/scale)
     sampler_halton = qmc.Halton(d=2, scramble=False)
-    HaltonSample = sampler_halton.random(n=n_rocks)
-    HaltonSample[:,0] *= terrain.num_rows
-    HaltonSample[:,1] *= terrain.num_cols
-    HaltonSample = HaltonSample.astype(int)
+    for i in range(1,num_rock_sizes):
+        terrain_height_scaler = 1
+        rock_radius = (i * scale) / 2        
+        lower_bound = terrain.length * terrain.width * cfa(k,rock_diameter=i*scale)
+        upper_bound = terrain.length * terrain.width * cfa(k,rock_diameter=(i+1)*scale)
+        num_rocks = int(lower_bound-upper_bound)
 
-    kernel = np.ones((2,2)) * random.uniform(rock_height[0], rock_height[1])
+        random_positions = (sampler_halton.random(n=num_rocks))
 
-    for p in HaltonSample:
-        terrain.height_field_raw[p[1]: p[1]+2, p[0]: p[0]+2] += (kernel*1/terrain.vertical_scale)
+        random_positions[:,0] *= terrain.num_rows
+        random_positions[:,1] *= terrain.num_cols
+        random_positions = random_positions.astype(int)
+        # print()
+        kernel = scaleMax(gaussian_kernel(i+1,sigma=0.7,normalized=False))
 
-    heightfield = np.zeros((terrain.num_rows, terrain.num_cols), dtype=np.float64)
+        if kernel[int((i+1)/2)-1,int((i+1)/2)] < 1:
+            kernel[int((i+1)/2),int((i+1)/2)] = kernel[int((i+1)/2)-1,int((i+1)/2)]
+            #terrain_height_scaler = 0.5
+
+        kernel = np.multiply(np.ones((1+i,1+i)) * random.uniform(rock_height[0], rock_height[1]), scaleMax(kernel) * (1/(1+np.exp(-i*0.3)))*2) * terrain_height_scaler#+ np.ones((1+i,1+i)) * i* scale *0.2
+        for p in random_positions:
+            try:
+                terrain.height_field_raw[p[0]: p[0]+1+i, p[1]: p[1]+1+i] += (kernel*1/terrain.vertical_scale)
+                try:
+                    rock[0][0] = p[0] * scale + rock_radius # x
+                    rock[0][1] = p[1] * scale + rock_radius # y
+                    rock[0][2] = 0                  # z
+                    rock[0][3] = rock_radius        # radius
+                    rocks = torch.cat((rocks, rock))  
+                except Exception:
+                    print("ERROR POSITION OF ROCKS NOT SAVED")
+                    raise Exception
+            except Exception:
+                pass
+
+     
+
+
+            
+    # for p in HaltonSample:
+    #     try:
+    #         terrain.height_field_raw[p[1]: p[1]+2, p[0]: p[0]+2] += (kernel*1/terrain.vertical_scale)
+    #     except:
+    #         print("fail")
+
+    # heightfield = np.zeros((terrain.num_rows, terrain.num_cols), dtype=np.float64)
 
 
 
 
-    return terrain
+    return terrain, rocks
 
-def NormalizeData(data):
+def NormalizeData(data) -> np.ndarray:
+    #Normalizes data
     return (data - np.min(data)) / (np.max(data) - np.min(data))
 
-def gaussian_distribution(n_samples: int, sigma=0.3) -> np.ndarray:
+def scaleMax(data) -> np.ndarray:
+    # Scales the maximum value to one
+    return (data / np.max(data))
+
+def scaleMin(data) -> np.ndarray:
+    # Scales the minimum value to zero
+    return (data - np.min(data))
+
+def gaussian_distribution(n_samples: int, sigma=0.3, normalized=True) -> np.ndarray:
 
     # Discrete sampling of range [-1:1] with n samples
     # With step size 1 / ( (n_samples - 1) / 2 )
+    
     step_size = 2 / (n_samples - 1)
-    sampled_values = np.arange(-1, 1+step_size, step_size)
-
+    # Add epsilon to avoid rounding errors influenzing the size of the kernal
+    epsilon = 1e-7
+    sampled_values = np.arange(-1, 1+epsilon, step_size)
     # Calculate gaussian distribution
     gaussian_distribution = [(1/(sigma*math.sqrt(2*math.pi))) * math.exp(-0.5*(x/sigma)*(x/sigma))   for x in sampled_values]
     
     # Normalize data between 0 and 1
-    gaussian_distribution = NormalizeData(gaussian_distribution)
+    if normalized == True:
+        gaussian_distribution = NormalizeData(gaussian_distribution)
 
     return gaussian_distribution
 
-def gaussian_kernel(n_samples: int, sigma=0.3) -> np.ndarray:
+def gaussian_kernel(n_samples: int, sigma=0.3, normalized=True) -> np.ndarray:
 
     # Take the outer product of a gaussian distribution
-    gaussian_kernel = np.outer(gaussian_distribution(n_samples,sigma),gaussian_distribution(n_samples,sigma))
+    gaussian_kernel = np.outer(gaussian_distribution(n_samples,sigma,normalized=normalized),gaussian_distribution(n_samples,sigma,normalized=normalized))
 
     return gaussian_kernel
 
-def gaussian_terrain(terrain):#terrain,gaussian_radius: float,height,n):
+def gaussian_terrain(terrain,kernel_radius=15,max_height=5):#terrain,gaussian_radius: float,height,n):
     """
     Parameters:
         gaussian_radius (float): Radius of gaussian kernel in meter
@@ -70,8 +122,8 @@ def gaussian_terrain(terrain):#terrain,gaussian_radius: float,height,n):
         n (int): Number of kernels per 100m^2
     """
     
-    kernel_radius = 15 # radius in meters [m]
-    max_height = 5 # Max height in meters [m]
+    kernel_radius = kernel_radius # radius in meters [m]
+    max_height = max_height # Max height in meters [m]
 
     # Size of kernel size kernel_diameter*kernel_diameter is equal to 2 * kernel_radius [m] / resolution + 1
     kernel_diameter = ((2 * kernel_radius) / terrain.horizontal_scale ) + 1 
@@ -81,7 +133,7 @@ def gaussian_terrain(terrain):#terrain,gaussian_radius: float,height,n):
     kernel = gaussian_kernel(kernel_diameter,sigma=0.4)
 
 
-    n_kernels = int((terrain.length/ (kernel_radius * 2)) * (terrain.width/ (kernel_radius * 2)))
+    n_kernels = int((terrain.length/ (kernel_radius * 2)) * (terrain.width/ (kernel_radius * 2))) + 3
 
     # Generate random placement of kernels
     sampler_halton = qmc.Halton(d=2, scramble=False)
@@ -90,7 +142,7 @@ def gaussian_terrain(terrain):#terrain,gaussian_radius: float,height,n):
     HaltonSample[:,1] *= terrain.num_cols
     HaltonSample = HaltonSample.astype(int)
     gaussian_heightfield = np.zeros((terrain.num_rows, terrain.num_cols), dtype=np.int16)
-    
+    len(HaltonSample)
    # HaltonSample = [[90,90]]
     for i in range(len(HaltonSample)):
         from_x = int( max(0, HaltonSample[i,0]-kernel_radius_unitless) )
@@ -107,7 +159,8 @@ def gaussian_terrain(terrain):#terrain,gaussian_radius: float,height,n):
         #terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel] * max_height* 1/terrain.vertical_scale )
 
         # Random height
-        terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel] * random.uniform(-max_height,max_height)* 1/terrain.vertical_scale )
+        #terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel] * random.uniform(-max_height,max_height)* 1/terrain.vertical_scale )
+        terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel]* 0/terrain.vertical_scale )
        # print(HaltonSample[i])
 
     return terrain
@@ -294,8 +347,11 @@ if __name__=="__main__":
     horizontal_scale = 0.1 # resolution per meter 
     vertical_scale = 0.005 # vertical resolution [m]
     #heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
-    VisualTest()
+    #VisualTest()
+    def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
+    print(add_rocks_terrain(terrain=new_sub_terrain()))
     #def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
     #add_rocks_terrain(terrain=new_sub_terrain())
+
 else:
     pass

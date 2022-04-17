@@ -14,7 +14,7 @@ from scipy.spatial.transform import Rotation as R
 from utils.exo_depth_observation import (exo_depth_observation, height_lookup,
                                          visualize_points)
 from utils.heigtmap_distribution import heightmap_distribution
-from utils.kinematics import Ackermann
+from utils.kinematics import Ackermann, AckermannV2
 from utils.tensor_quat_to_euler import tensor_quat_to_eul
 from utils.terrain_generation import *
 from utils.torch_jit_utils import *
@@ -22,7 +22,7 @@ from utils.torch_jit_utils import *
 from tasks.base.vec_task import VecTask
 
 
-class Exomy_actual(VecTask):
+class Exomy_acc(VecTask):
 
     def __init__(self, cfg, sim_device, graphics_device_id, headless):
 
@@ -30,7 +30,7 @@ class Exomy_actual(VecTask):
         #self.Kinematics = Rover()
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
         self._num_camera_inputs = 150
-        self._num_observations = 5
+        self._num_observations = 11
         self.cfg["env"]["numCamera"] = self._num_camera_inputs
         self.cfg["env"]["numObservations"] = self._num_observations + self._num_camera_inputs
         
@@ -82,7 +82,7 @@ class Exomy_actual(VecTask):
         
         self.target_root_positions = torch.zeros((self.num_envs, 3), device=self.device, dtype=torch.float32)
         self.target_root_positions[:, 2] = 0
-
+        self.action_pos = torch.zeros((self.num_envs,2), device=self.device, dtype=torch.float32)
         # Previous actions and torques
         self.actions_nn = torch.zeros((self.num_envs, self.cfg["env"]["numActions"], 3), device=self.device)
         #self.steering_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
@@ -398,13 +398,19 @@ class Exomy_actual(VecTask):
         '''
         #print(_actions[0])
         # Code for running ExoMy in Ackermann mode
-        _actions[:,0] = _actions[:,0] * 3
-        _actions[:,1] = _actions[:,1] * 3
-        
+        # _actions[:,0] = _actions[:,0] * 3
+        # _actions[:,1] = _actions[:,1] * 3
+
+        #_actions = _actions[:,0] * 0.07854
+        #_actions = _actions[:,1] * 0.07854
+
+        self.action_pos[:,0] = torch.clamp((self.action_pos[:,0] + _actions[:,0] * 0.07854),min=-3.0,max=3-0)
+        self.action_pos[:,1] = torch.clamp((self.action_pos[:,1] + _actions[:,0] * 0.07854),min=-3.0,max=3-0)
+        #self._actions1 = 
         #_actions[:,0] = 0
         #_actions[:,1] = math.pi
         #
-        steering_angles, motor_velocities = Ackermann(_actions[:,0], _actions[:,1])
+        steering_angles, motor_velocities = Ackermann(self.action_pos[:,0], self.action_pos[:,1])
         # # a = torch.ones(1,device='cuda:0')*0.3
         # # b = torch.ones(1,device='cuda:0')*3
         # steering_angles, motor_velocities = Ackermann(a,b)
@@ -501,8 +507,10 @@ class Exomy_actual(VecTask):
 
     def compute_observations(self):
         self.obs_buf[..., 0:2] = (self.target_root_positions[..., 0:2] - self.root_positions[..., 0:2]) / 4
-        self.obs_buf[..., 2] = (self.root_euler[..., 2]  - (math.pi/2)) + (math.pi / (2 * math.pi))
-        self.obs_buf[..., 3:5] = self.actions_nn[:,:,0] / 3
+        self.obs_buf[..., 2] = (self.root_euler[..., 2]  - (math.pi/2)) + (math.pi / (2 * math.pi)) / math.pi
+        self.obs_buf[..., 3:5] = self.action_pos / 3
+        self.obs_buf[..., 5:8] = self.root_linvels / 2
+        self.obs_buf[..., 8:11] = self.root_angvels / math.pi
         self.obs_buf[...,self._num_observations:(self._num_observations+self._num_camera_inputs)] = self.elevationMap * 3
         #print(torch.max(self.obs_buf[0,0:152]))
         #self.obs_buf[..., 3:6] = self.root_linvels
@@ -582,6 +590,7 @@ def compute_exomy_reward(root_positions, target_root_positions,
     penalty2 = torch.where((torch.abs(actions_nn[:,1,0] - actions_nn[:,1,1]) > 0.8), (torch.abs(actions_nn[:,1,0] - actions_nn[:,1,1])),zero_reward)
     motion_contraint_penalty =  -torch.pow(penalty1,2) * rew_scales["motion_contraint"]
     motion_contraint_penalty = motion_contraint_penalty-(torch.pow(penalty2,2) * rew_scales["motion_contraint"])
+    print(torch.sum(motion_contraint_penalty))
     # Torque reward
     driving_forces = torch.stack((forces[2::15], forces[4::15], forces[7::15], forces[9::15], forces[12::15], forces[14::15]), dim=1)
     steering_forces = torch.stack((forces[1::15], forces[3::15], forces[6::15], forces[8::15], forces[11::15], forces[13::15]), dim=1)

@@ -14,7 +14,7 @@ from scipy.spatial.transform import Rotation as R
 from utils.exo_depth_observation import (exo_depth_observation, height_lookup,
                                          visualize_points)
 from utils.heigtmap_distribution import heightmap_distribution
-from utils.kinematics import Ackermann
+from utils.kinematics2 import Ackermann2 as Ackermann
 from utils.tensor_quat_to_euler import tensor_quat_to_eul
 from utils.terrain_generation import *
 from utils.torch_jit_utils import *
@@ -44,8 +44,8 @@ class Exomy_actual(VecTask):
         self.rew_scales["pos"] = self.cfg["env"]["learn"]["pos_reward"] 
         self.rew_scales["collision"] = self.cfg["env"]["learn"]["collision_reward"] 
         self.rew_scales["heading"] = self.cfg["env"]["learn"]["heading_contraint_reward"] 
-        self.rew_scales["torque_driving"] = self.cfg["env"]["learn"]["heading_contraint_reward"] 
-        self.rew_scales["torque_steering"] = self.cfg["env"]["learn"]["torque_reward_driving"] 
+        self.rew_scales["torque_driving"] = self.cfg["env"]["learn"]["torque_reward_driving"] 
+        self.rew_scales["torque_steering"] = self.cfg["env"]["learn"]["torque_reward_steering"] 
         self.rew_scales["uprightness"] = self.cfg["env"]["learn"]["uprightness_reward"]
         self.rew_scales["motion_contraint"] = self.cfg["env"]["learn"]["motion_contraint_reward"] 
         
@@ -396,7 +396,7 @@ class Exomy_actual(VecTask):
         actions_tensor[13::15]=(_actions[:,10]) * self.max_effort_pos #13 #RM POS
         actions_tensor[14::15]=(_actions[:,11]) * self.max_effort_vel #14 #RM DRIVE
         '''
-
+        #print(_actions[0])
         # Code for running ExoMy in Ackermann mode
         _actions[:,0] = _actions[:,0] * 3
         _actions[:,1] = _actions[:,1] * 3
@@ -495,6 +495,7 @@ class Exomy_actual(VecTask):
         self.obs_buf[..., 0:2] = (self.target_root_positions[..., 0:2] - self.root_positions[..., 0:2]) / 4
         self.obs_buf[..., 2] = (self.root_euler[..., 2]  - (math.pi/2)) + (math.pi / (2 * math.pi))
         self.obs_buf[...,self._num_observations:(self._num_observations+self._num_camera_inputs)] = self.elevationMap
+        #print(torch.max(self.obs_buf[0,0:152]))
         #self.obs_buf[..., 3:6] = self.root_linvels
         #self.obs_buf[..., 6:9] = self.root_angvels
         # self.obs_buf[..., 0:3] = (self.target_root_positions - self.root_positions) / 3
@@ -505,17 +506,25 @@ class Exomy_actual(VecTask):
 
     def compute_rewards(self):
         # TODO remove shift from this formula
+        
         self.exo_locations_tensor[:, 0:2] = self.exo_locations_tensor[:, 0:2] - self.shift
-        self.rew_buf[:], self.reset_buf[:] = compute_exomy_reward(self.root_positions,
+        self.rew_buf[:], self.reset_buf[:], extras = compute_exomy_reward(self.root_positions,
             self.target_root_positions, self.root_quats, self.root_euler, self.actions_nn,
             self.dof_force_tensor, self.exo_locations_tensor[:, 0:3], self.rock_positions,
-            self.reset_buf, self.progress_buf, self.rew_scales, self.max_episode_length)        
+            self.reset_buf, self.progress_buf, self.rew_scales, self.max_episode_length)
+        self.extras["pos_reward"] = extras['pos_reward']
+        self.extras["collision_penalty"] = extras['collision_penalty']
+        self.extras["uprightness_penalty"] = extras['uprightness_penalty']
+        self.extras["heading_contraint_penalty"] = extras['heading_contraint_penalty']
+        self.extras["motion_contraint_penalty"] = extras['motion_contraint_penalty']
+        self.extras["torque_penalty_driving"] = extras['torque_penalty_driving']
+        self.extras["torque_penalty_steering"] = extras['torque_penalty_steering']      
 
 
 @torch.jit.script
 def compute_exomy_reward(root_positions, target_root_positions, 
         root_quats, root_euler, actions_nn, forces, global_location, rock_positions, reset_buf, progress_buf, rew_scales, max_episode_length):
-    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Dict[str,float], float) -> Tuple[Tensor, Tensor]
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Dict[str,float], float) -> Tuple[Tensor, Tensor, Dict[str,Tensor]]
 
     # Tool tensors
     zero_reward = torch.zeros_like(reset_buf)
@@ -535,7 +544,7 @@ def compute_exomy_reward(root_positions, target_root_positions,
     #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
     
     # distance to target
-    pos_reward = (1.0 / (1.0 + target_dist * target_dist)-0.3) * rew_scales['pos']
+    pos_reward = (1.0 / (1.0 + target_dist * target_dist)) * rew_scales['pos']
 
 
     # Collision reward - Anton
@@ -562,19 +571,28 @@ def compute_exomy_reward(root_positions, target_root_positions,
     # Torque reward
     driving_forces = torch.stack((forces[2::15], forces[4::15], forces[7::15], forces[9::15], forces[12::15], forces[14::15]), dim=1)
     steering_forces = torch.stack((forces[1::15], forces[3::15], forces[6::15], forces[8::15], forces[11::15], forces[13::15]), dim=1)
+
     torque_penalty_driving = -torch.abs(driving_forces).sum(dim=1) * rew_scales['torque_driving']
     torque_penalty_steering = -torch.abs(steering_forces).sum(dim=1) * rew_scales['torque_steering']
 
     reward = pos_reward + collision_penalty + uprightness_penalty + heading_contraint_penalty + motion_contraint_penalty + torque_penalty_driving + torque_penalty_steering
-
+ 
 
 
     # resets due to episode length'
     reset = torch.where(progress_buf >= max_episode_length - 1, ones, die)
-    reset = torch.where(target_dist >= 8, ones, reset)
-    reset = torch.where(nearest_rock <= 0.22, ones, reset)  # reset if colliding
+    reset = torch.where(target_dist >= 4, ones, reset)
+    reset = torch.where(nearest_rock <= 0.26, ones, reset)  # reset if colliding
     reset = torch.where(torch.abs(root_euler[:,0]) >= 0.78*1.5, ones, reset)  # reset if roll above 45 degrees(radians)
     reset = torch.where(torch.abs(root_euler[:,1]) >= 0.78*1.5, ones, reset)  # reset if pitch above 45 degrees(radians)
     
+    extras = {}
+    extras['pos_reward'] = pos_reward
+    extras['collision_penalty'] = collision_penalty
+    extras['uprightness_penalty'] = uprightness_penalty
+    extras['heading_contraint_penalty'] = heading_contraint_penalty
+    extras['motion_contraint_penalty'] = motion_contraint_penalty
+    extras['torque_penalty_driving'] = torque_penalty_driving
+    extras['torque_penalty_steering'] = torque_penalty_steering
     
-    return reward, reset        
+    return reward, reset, extras       

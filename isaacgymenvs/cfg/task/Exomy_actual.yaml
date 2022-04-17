@@ -5,7 +5,7 @@ physics_engine: ${..physics_engine}
 
 # if given, will override the device setting in gym.
 env:
-  numEnvs: ${resolve_default:1048,${...num_envs}}
+  numEnvs: ${resolve_default:1024,${...num_envs}}
   envSpacing: 1
   maxEpisodeLength: 3000
   enableDebugVis: False
@@ -19,7 +19,7 @@ env:
     # rewards
     terminalReward: 0
     pos_reward: 1.0
-    collision_reward: 0 #0.3
+    collision_reward: 0.3
     heading_contraint_reward: 0.05 #0.05
     torque_reward_driving: 0.0 #0.0005
     torque_reward_steering: 0.0  #0.0005 #-1.

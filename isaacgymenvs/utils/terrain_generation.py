@@ -16,7 +16,7 @@ def cfa(cfa: float, rock_diameter: float):
     return Fk(rock_diameter,cfa)
 
 def add_rocks_terrain(terrain, rock_height = (0.1,0.2)):
-    k = 0.05
+    k = 0.4
     #k = 0.15    # total fractional area covered by rocks
     #sample_size = int(0.5 / terrain.horizontal_scale)
     #probs = np.arange(terrain.horizontal_scale, sample_size, terrain.horizontal_scale)

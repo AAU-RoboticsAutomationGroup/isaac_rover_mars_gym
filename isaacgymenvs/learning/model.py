@@ -108,7 +108,7 @@ class DeterministicActor(DeterministicModel):
 #         return x
 
 class StochasticActorHeightmap(GaussianModel):
-    def __init__(self, observation_space, action_space, num_exteroception=150, device = "cuda:0", network_features=[512,256,128], encoder_features=[80,60], activation_function="elu",clip_actions=False, clip_log_std = True, min_log_std= -20.0, max_log_std = 2.0):
+    def __init__(self, observation_space, action_space, num_exteroception=150, device = "cuda:0", network_features=[512,256,128], encoder_features=[80,60], activation_function="relu",clip_actions=False, clip_log_std = True, min_log_std= -20.0, max_log_std = 2.0):
         super().__init__(observation_space, action_space, device, clip_actions)
         self.num_exteroception = num_exteroception  # External information (Heightmap)
         self.num_proprioception = observation_space.shape[0] - self.num_exteroception 
@@ -128,7 +128,8 @@ class StochasticActorHeightmap(GaussianModel):
             in_channels = feature
 
         self.network.append(nn.Linear(in_channels,action_space.shape[0]))
-        self.network.append(nn.Sigmoid())
+        #self.network.append(Conv(in_channels, action_space.shape[0], activation_function))
+        
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, states, taken_actions):
@@ -143,6 +144,38 @@ class StochasticActorHeightmap(GaussianModel):
 
 
 
+
+class DeterministicHeightmap(DeterministicModel):
+    def __init__(self, observation_space, action_space, num_exteroception=150, device = "cuda:0", network_features=[128,64], encoder_features=[80,60], activation_function="relu", clip_actions=False):
+        super().__init__(observation_space, action_space, device, clip_actions)
+        self.num_exteroception = num_exteroception  # External information (Heightmap)
+        self.num_proprioception = observation_space.shape[0] - self.num_exteroception 
+        self.network = nn.ModuleList()  # MLP for network
+        self.encoder = nn.ModuleList()  # Encoder with MLPs for heightmap
+
+        # Create encoder for heightmap
+        in_channels = self.num_exteroception
+        for feature in encoder_features:
+            self.encoder.append(Conv(in_channels, feature, activation_function))
+            in_channels = feature
+        
+        # Create MLP
+        in_channels = self.num_proprioception + encoder_features[-1]
+        for feature in network_features:
+            self.network.append(Conv(in_channels, feature, activation_function))
+            in_channels = feature
+
+        self.network.append(nn.Linear(in_channels,1))
+
+
+    def compute(self, states, taken_actions):
+        x = states[:,self.num_proprioception:]
+        for layer in self.encoder:
+            x = layer(x)
+        x = torch.cat([states[:,0:self.num_proprioception], x], dim=1)
+        for layer in self.network:
+            x = layer(x)
+        return x
 
 class DeterministicCritic(DeterministicModel):
     def __init__(self, observation_space, action_space, device = "cuda:0", features=[512,256,128], activation_function="elu",clip_actions=False):
@@ -163,7 +196,6 @@ class DeterministicCritic(DeterministicModel):
         for layer in self.network:
             x = layer(x)
         return x
-
 # #REMOVE LATER
 # class DeterministicActor(DeterministicModel):
 #     def __init__(self, observation_space, action_space, device, clip_actions = False):

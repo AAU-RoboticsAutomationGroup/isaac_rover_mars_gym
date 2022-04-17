@@ -32,7 +32,7 @@ for i in range(0,3):
     # Instantiate the agent's models (function approximators).
     # PPO requires 2 models, visit its documentation for more details
     # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#spaces-and-models
-    models_ppo = {  "policy": StochasticActor(env.observation_space, env.action_space, features=[256,160,128], activation_function="relu"),
+    models_ppo = {  "policy": StochasticActor(env.observation_space, env.action_space, network_features=[256,160,128], activation_function="relu"),
                     "value": StochasticCritic(env.observation_space, env.action_space, features=[256,160,128], activation_function="relu")}
 
     # Initialize the models' parameters (weights and biases) using a Gaussian distribution

@@ -14,7 +14,7 @@ from scipy.spatial.transform import Rotation as R
 from utils.exo_depth_observation import (exo_depth_observation, height_lookup,
                                          visualize_points)
 from utils.heigtmap_distribution import heightmap_distribution
-from utils.kinematics import Ackermann, AckermannV2
+from utils.kinematics import Ackermann 
 from utils.tensor_quat_to_euler import tensor_quat_to_eul
 from utils.terrain_generation import *
 from utils.torch_jit_utils import *

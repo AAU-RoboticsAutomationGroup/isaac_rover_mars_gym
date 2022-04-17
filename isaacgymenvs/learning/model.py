@@ -128,7 +128,6 @@ class StochasticActorHeightmap(GaussianModel):
             in_channels = feature
 
         self.network.append(nn.Linear(in_channels,action_space.shape[0]))
-        #self.network.append(Conv(in_channels, action_space.shape[0], activation_function))
         
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 

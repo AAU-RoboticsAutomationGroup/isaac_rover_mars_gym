@@ -24,7 +24,7 @@ device = env.device
 #@hydra.main(config_path="./cfg", config_name="config")
 def run_tests():
     #config = OmegaConf.to_yaml(cfg)
-    path = 'cfg/tests/test.yaml'
+    path = 'cfg/tests/test6.yaml'
     cfg = OmegaConf.load(path)
     timesteps = 100000
     agent = []

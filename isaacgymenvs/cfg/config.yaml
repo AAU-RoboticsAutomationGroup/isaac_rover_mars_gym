@@ -40,7 +40,7 @@ checkpoint: ''
 multi_gpu: False
 
 # disables rendering
-headless: False
+headless: True
 
 # set default task and default training config based on task
 defaults:

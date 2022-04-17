@@ -424,7 +424,6 @@ class Exomy_actual(VecTask):
         actions_tensor[14::15]=(motor_velocities[:,1]) #14 #FR DRIVE
         
         self.actions_nn = torch.cat((torch.reshape(_actions,(self.num_envs, self.cfg["env"]["numActions"], 1)), self.actions_nn), 2)[:,:,0:3]
-        print()
         '''
         # Code for extracting position and velocity goal over time.
 

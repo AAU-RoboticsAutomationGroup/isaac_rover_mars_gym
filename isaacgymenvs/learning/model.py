@@ -128,6 +128,7 @@ class StochasticActorHeightmap(GaussianModel):
             in_channels = feature
 
         self.network.append(nn.Linear(in_channels,action_space.shape[0]))
+        self.network.append(nn.Tanh())
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, states, taken_actions):
@@ -171,6 +172,38 @@ class DeterministicHeightmap(DeterministicModel):
         for layer in self.encoder:
             x = layer(x)
         x = torch.cat([states[:,0:self.num_proprioception], x], dim=1)
+        for layer in self.network:
+            x = layer(x)
+        return x
+
+class DeterministicHeightmapTD3(DeterministicModel):
+    def __init__(self, observation_space, action_space, num_exteroception=150, device = "cuda:0", network_features=[128,64], encoder_features=[80,60], activation_function="relu", clip_actions=False):
+        super().__init__(observation_space, action_space, device, clip_actions)
+        self.num_exteroception = num_exteroception  # External information (Heightmap)
+        self.num_proprioception = observation_space.shape[0] - self.num_exteroception 
+        self.network = nn.ModuleList()  # MLP for network
+        self.encoder = nn.ModuleList()  # Encoder with MLPs for heightmap
+
+        # Create encoder for heightmap
+        in_channels = self.num_exteroception
+        for feature in encoder_features:
+            self.encoder.append(Conv(in_channels, feature, activation_function))
+            in_channels = feature
+        
+        # Create MLP
+        in_channels = self.num_proprioception + encoder_features[-1]
+        for feature in network_features:
+            self.network.append(Conv(in_channels, feature, activation_function))
+            in_channels = feature
+
+        self.network.append(nn.Linear(in_channels,1))
+
+
+    def compute(self, states, taken_actions):
+        x = states[:,self.num_proprioception:]
+        for layer in self.encoder:
+            x = layer(x)
+        x = torch.cat([states[:,0:self.num_proprioception,taken_actions], x], dim=1)
         for layer in self.network:
             x = layer(x)
         return x

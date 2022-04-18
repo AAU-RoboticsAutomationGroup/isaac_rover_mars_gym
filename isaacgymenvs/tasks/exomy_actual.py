@@ -503,12 +503,13 @@ class Exomy_actual(VecTask):
         self.compute_rewards()
 
     def compute_observations(self):
-        eps = 1e-7
+        # eps = 1e-7
 
-        dot = torch.sum(self.target_vector * self.direction_vector,dim=1) / (torch.linalg.norm(self.target_vector,dim=1) * torch.linalg.norm(self.direction_vector,dim=1))
-        angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
-        heading_diff = torch.arccos(angle)
-       # print(heading_diff)
+        # dot = torch.sum(self.target_vector * self.direction_vector,dim=1) / (torch.linalg.norm(self.target_vector,dim=1) * torch.linalg.norm(self.direction_vector,dim=1))
+        # angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
+        # heading_diff = torch.arccos(angle)
+        #https://stackoverflow.com/questions/2150050/finding-signed-angle-between-vectors
+        heading_diff = torch.atan2(self.target_vector[:,0] * self.direction_vector[:,1] - self.target_vector[:,1]*self.direction_vector[:,0],self.target_vector[:,0]*self.direction_vector[:,0]+self.target_vector[:,1]*self.direction_vector[:,1])
         #dot =  ((target_vector[..., 0] * torch.cos(root_euler[..., 2] - (math.pi/2))) + (target_vector[..., 1] * torch.sin(root_euler[..., 2] - (math.pi/2)))) / ((torch.sqrt(torch.square(target_vector[..., 0]) + torch.square(target_vector[..., 1]))) * torch.sqrt(torch.square(torch.cos(root_euler[..., 2] - (math.pi/2))) + torch.square(torch.sin(root_euler[..., 2] - (math.pi/2)))))
         # angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
         # heading_diff = torch.arccos(angle)

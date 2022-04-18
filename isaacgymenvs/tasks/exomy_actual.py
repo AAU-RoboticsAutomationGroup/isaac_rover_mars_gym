@@ -159,7 +159,7 @@ class Exomy_actual(VecTask):
         self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
 
         def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
-        terrain = gaussian_terrain(new_sub_terrain(),15,5)
+        terrain = gaussian_terrain(new_sub_terrain(),15,2)
         #terrain = gaussian_terrain(terrain,5,1)
         #terrain = gaussian_terrain(terrain,1,0.4)
         #heightfield[0:int(terrain_width/horizontal_scale),:]= gaussian_terrain(new_sub_terrain()).height_field_raw
@@ -596,9 +596,9 @@ def compute_exomy_reward(root_positions, target_root_positions,
     reset = torch.where(progress_buf >= max_episode_length - 1, ones, die)
     reset = torch.where(target_dist >= 4, ones, reset)
     reset = torch.where(nearest_rock <= 0.26, ones, reset)  # reset if colliding
-    reward = torch.where(nearest_rock <= 0.26, reward-1000, reward)  # reset if colliding
+    # reward = torch.where(nearest_rock <= 0.26, reward-1000, reward)  # reset if colliding
     reset = torch.where(target_dist <= 0.2, ones, reset)  # reset if colliding
-    reward = torch.where(target_dist <= 0.2, reward+5000, reward)  # reset if colliding
+    reward = torch.where(target_dist <= 0.2, reward+1*(max_episode_length-progress_buf), reward)  # reset if colliding
     reset = torch.where(torch.abs(root_euler[:,0]) >= 0.78*1.5, ones, reset)  # reset if roll above 45 degrees(radians)
     reset = torch.where(torch.abs(root_euler[:,1]) >= 0.78*1.5, ones, reset)  # reset if pitch above 45 degrees(radians)
     

@@ -119,7 +119,7 @@ class Exomy_actual(VecTask):
 
         # heightmap_distribution( delta=0.07, limit=2,front_heavy=0.012, plot=False) # Weigted little towards front
         # heightmap_distribution( delta=0.06, limit=1.6,front_heavy=0.01, plot=True) # Weigted more towards front
-
+        self.direction_vector = torch.zeros([self.num_envs, 2], device='cuda:0')
         # Convert numpy to tensor
         self.exo_depth_points_tensor = torch.tensor(exo_depth_points, device='cuda:0')
         # Initialize empty location tensor for all robots
@@ -159,7 +159,7 @@ class Exomy_actual(VecTask):
         self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
 
         def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
-        terrain = gaussian_terrain(new_sub_terrain(),15,5)
+        terrain = gaussian_terrain(new_sub_terrain(),15,2)
         #terrain = gaussian_terrain(terrain,5,1)
         #terrain = gaussian_terrain(terrain,1,0.4)
         #heightfield[0:int(terrain_width/horizontal_scale),:]= gaussian_terrain(new_sub_terrain()).height_field_raw
@@ -494,12 +494,29 @@ class Exomy_actual(VecTask):
         #print(torch.max(self.elevationMap[2]))
         # Visualize points for robot [0]
         visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1,self.exo_locations_tensor[:,0:3])
-
+        
+        # Calculate a direction vector for the robot
+        self.direction_vector[:,0] = torch.cos(self.root_euler[..., 2] - (math.pi/2)) # x value
+        self.direction_vector[:,1] = torch.sin(self.root_euler[..., 2] - (math.pi/2)) # y value
+        self.target_vector = self.target_root_positions[..., 0:2] - self.root_positions[..., 0:2]
         self.compute_observations()
         self.compute_rewards()
 
     def compute_observations(self):
-        self.obs_buf[..., 0:2] = (self.target_root_positions[..., 0:2] - self.root_positions[..., 0:2]) / 4
+        # eps = 1e-7
+
+        # dot = torch.sum(self.target_vector * self.direction_vector,dim=1) / (torch.linalg.norm(self.target_vector,dim=1) * torch.linalg.norm(self.direction_vector,dim=1))
+        # angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
+        # heading_diff = torch.arccos(angle)
+        #https://stackoverflow.com/questions/2150050/finding-signed-angle-between-vectors
+        heading_diff = torch.atan2(self.target_vector[:,0] * self.direction_vector[:,1] - self.target_vector[:,1]*self.direction_vector[:,0],self.target_vector[:,0]*self.direction_vector[:,0]+self.target_vector[:,1]*self.direction_vector[:,1])
+        #dot =  ((target_vector[..., 0] * torch.cos(root_euler[..., 2] - (math.pi/2))) + (target_vector[..., 1] * torch.sin(root_euler[..., 2] - (math.pi/2)))) / ((torch.sqrt(torch.square(target_vector[..., 0]) + torch.square(target_vector[..., 1]))) * torch.sqrt(torch.square(torch.cos(root_euler[..., 2] - (math.pi/2))) + torch.square(torch.sin(root_euler[..., 2] - (math.pi/2)))))
+        # angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
+        # heading_diff = torch.arccos(angle)
+        #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
+        #self.obs_buf[..., 0:2] = (self.target_root_positions[..., 0:2] - self.root_positions[..., 0:2]) / 4
+        self.obs_buf[..., 0] = torch.linalg.norm(self.target_vector,dim=1) / 4
+        self.obs_buf[..., 1] = (heading_diff) / 3
         self.obs_buf[..., 2] = (self.root_euler[..., 2]  - (math.pi/2)) + (math.pi / (2 * math.pi))
         self.obs_buf[..., 3:5] = self.actions_nn[:,:,0] / 3
         self.obs_buf[...,self._num_observations:(self._num_observations+self._num_camera_inputs)] = self.elevationMap * 3
@@ -534,7 +551,7 @@ def compute_exomy_reward(root_positions, target_root_positions,
         root_quats, root_euler, actions_nn, forces, global_location, rock_positions, reset_buf, progress_buf, rew_scales, max_episode_length):
     # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Dict[str,float], float) -> Tuple[Tensor, Tensor, Dict[str,Tensor]]
 
-    # Tool tensors
+    # Tool tensors 
     zero_reward = torch.zeros_like(reset_buf)
     max_reward = torch.ones_like(reset_buf)
     ones = torch.ones_like(reset_buf)
@@ -545,6 +562,8 @@ def compute_exomy_reward(root_positions, target_root_positions,
     target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
 
     # eps = 1e-7
+
+
 
     # dot =  ((target_vector[..., 0] * torch.cos(root_euler[..., 2] - (math.pi/2))) + (target_vector[..., 1] * torch.sin(root_euler[..., 2] - (math.pi/2)))) / ((torch.sqrt(torch.square(target_vector[..., 0]) + torch.square(target_vector[..., 1]))) * torch.sqrt(torch.square(torch.cos(root_euler[..., 2] - (math.pi/2))) + torch.square(torch.sin(root_euler[..., 2] - (math.pi/2)))))
     # angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
@@ -596,9 +615,9 @@ def compute_exomy_reward(root_positions, target_root_positions,
     reset = torch.where(progress_buf >= max_episode_length - 1, ones, die)
     reset = torch.where(target_dist >= 4, ones, reset)
     reset = torch.where(nearest_rock <= 0.26, ones, reset)  # reset if colliding
-    reward = torch.where(nearest_rock <= 0.26, reward-1000, reward)  # reset if colliding
+    # reward = torch.where(nearest_rock <= 0.26, reward-1000, reward)  # reset if colliding
     reset = torch.where(target_dist <= 0.2, ones, reset)  # reset if colliding
-    reward = torch.where(target_dist <= 0.2, reward+5000, reward)  # reset if colliding
+    reward = torch.where(target_dist <= 0.2, reward+1*(max_episode_length-progress_buf), reward)  # reset if colliding
     reset = torch.where(torch.abs(root_euler[:,0]) >= 0.78*1.5, ones, reset)  # reset if roll above 45 degrees(radians)
     reset = torch.where(torch.abs(root_euler[:,1]) >= 0.78*1.5, ones, reset)  # reset if pitch above 45 degrees(radians)
     

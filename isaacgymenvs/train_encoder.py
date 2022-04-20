@@ -63,7 +63,7 @@ for i in range(0,3):
     # logging to TensorBoard and write checkpoints each 120 and 3000 timesteps respectively
     cfg_ppo["experiment"]["write_interval"] = 120
     cfg_ppo["experiment"]["checkpoint_interval"] = 3000
-    cfg_ppo["experiment"]["experiment_name"] = "REMOVEl80l60"
+    cfg_ppo["experiment"]["experiment_name"] = "REMOVE"
     agent = PPO(models=models_ppo,
                 memory=memory, 
                 cfg=cfg_ppo, 

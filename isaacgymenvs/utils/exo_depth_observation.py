@@ -33,7 +33,7 @@ def exo_depth_observation(exo_r, exo_l, exo_depth_points):
     #Stack points in a [x, y, 2] matrix, and return
     return torch.stack((x_p, y_p), 2)
 
-def height_lookup(heightmap: torch.Tensor, depth_points: torch.Tensor, horizontal_scale, vertical_scale, shift, exo_loc):
+def height_lookup(heightmap: torch.Tensor, depth_points: torch.Tensor, horizontal_scale, vertical_scale, shift, exo_loc, exo_r, exo_depth_points):
 
     # Scale locations to fit heightmap
     scaledmap = (depth_points-shift)/horizontal_scale
@@ -56,7 +56,7 @@ def height_lookup(heightmap: torch.Tensor, depth_points: torch.Tensor, horizonta
         heights = heightmap[x, y]
         # Scale to fit actual height, dependent on resolution
         heights = heights * vertical_scale
-        # Shift heigtd to to ground height
+        # Shift heights to ground height
         heights = heights + 0.106
         # Reshape heigts to correct size
         heights = heights.reshape([depth_points.size()[0], depth_points.size()[1]])
@@ -64,6 +64,17 @@ def height_lookup(heightmap: torch.Tensor, depth_points: torch.Tensor, horizonta
         # Z-shift, so points are measured relative to robot height.
         exo_z_loc = torch.transpose(exo_loc[:,2].expand(depth_points.size()[1], depth_points.size()[0]), 0, 1)
         heights = heights - exo_z_loc
+
+        # Get number of points and number of robots from input
+        num_robots = exo_r.size()[0]
+
+        # Take into account rotation of robot
+            #When sitting on flat surface, height map should be zeros, no matter the angle of the surface.
+        sinxr = torch.transpose(torch.sin(exo_r[:,0].expand(1, num_robots)), 0, 1)
+        sinyr = torch.transpose(torch.sin(exo_r[:,1].expand(1, num_robots)), 0, 1)
+        xrot_offset = -sinyr * exo_depth_points[:,0]
+        yrot_offset = -sinxr * exo_depth_points[:,1]
+        heights = heights - xrot_offset + yrot_offset
 
     # If 2 or less dimensions in scaled map(1 point for each robot) - Used to spawn robot at correct height
     else :

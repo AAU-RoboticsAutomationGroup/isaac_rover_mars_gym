@@ -101,12 +101,12 @@ class Exomy_actual(VecTask):
         # self.dof_positions = self.dof_states.view(self.num_envs, self.num_dof, 2)[..., 0]
         # self.dof_velocities = self.dof_states.view(self.num_envs, self.num_dof, 2)[..., 1]
 
-        self.gym.refresh_actor_root_state_tensor(self.sim)
-        self.gym.refresh_dof_state_tensor(self.sim)
-
         self.initial_root_states = self.root_states.clone()
         self.initial_dof_states = self.dof_states.clone()
                 
+        self.gym.refresh_actor_root_state_tensor(self.sim)
+        self.gym.refresh_dof_state_tensor(self.sim)
+
         # Control tensor
         self.all_actor_indices = torch.arange(self.num_envs * 2, dtype=torch.int32, device=self.device).reshape((self.num_envs, 2))
 
@@ -180,9 +180,6 @@ class Exomy_actual(VecTask):
         self.gym.add_triangle_mesh(self.sim, vertices.flatten(), triangles.flatten(), tm_params)
     
     def check_spawn_collision(self):
- 
-
-
         #self.initial_root_states[:,0] = torch.where(nearest_rock[:] <= 0.25,self.initial_root_states[:,0]+0.05,self.initial_root_states[:,0])
         for i in range(1,10000):
             self.exo_locations_tensor[:, 0:3] = self.initial_root_states[:,0:3].add(self.env_origins_tensor) - self.shift
@@ -190,6 +187,7 @@ class Exomy_actual(VecTask):
             dist_rocks[:] = dist_rocks[:]-self.rock_positions[:,3]                               # Calculate distance to nearest point of all rocks
             nearest_rock = torch.min(dist_rocks,dim=1)[0]                                   # Find the closest rock to each robot
             self.initial_root_states[:,0] = torch.where(nearest_rock[:] <= 0.4,self.initial_root_states[:,0]+0.05,self.initial_root_states[:,0])
+            
     def set_targets(self, env_ids):
         num_sets = len(env_ids)
         # set target position randomly with x, y in (-2, 2) and z in (1, 2)
@@ -350,7 +348,7 @@ class Exomy_actual(VecTask):
         
         # Spawn exomy at the correct z-height.
         loc = self.env_origins_tensor[env_ids]
-        height = height_lookup(self.tensor_map, loc, self.horizontal_scale, self.vertical_scale, self.shift, loc)
+        height = height_lookup(self.tensor_map, loc, self.horizontal_scale, self.vertical_scale, self.shift, loc, torch.zeros(num_resets, 3), self.exo_depth_points_tensor)
         self.root_states[env_ids, 2] = height+0.25
 
         self.dof_states = self.initial_dof_states
@@ -490,7 +488,7 @@ class Exomy_actual(VecTask):
         depth_point_locations = exo_depth_observation(exo_rot, self.exo_locations_tensor[:,0:3], self.exo_depth_points_tensor)
         #print(depth_point_locations)
         # Lookup heigt at depth point locations.
-        self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3])
+        self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3], exo_rot, self.exo_depth_points_tensor)
         #print(torch.max(self.elevationMap[2]))
         # Visualize points for robot [0]
         visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1,self.exo_locations_tensor[:,0:3])

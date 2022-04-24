@@ -231,6 +231,7 @@ class Exomy_actual(VecTask):
         self.marker_positions[env_ids] = self.target_root_positions[env_ids]
         # copter "position" is at the bottom of the legs, so shift the target up so it visually aligns better
         # self.marker_positions[env_ids, 2] += 0.4
+        #TODO fix this function
         #self.check_goal_collision(env_ids) # check if goal spawn inside obstacle
         actor_indices = self.all_actor_indices[env_ids, 1].flatten()
         self.gym.set_actor_root_state_tensor_indexed(self.sim,self.root_tensor, gymtorch.unwrap_tensor(actor_indices), num_sets)
@@ -435,16 +436,11 @@ class Exomy_actual(VecTask):
         # Code for running ExoMy in Ackermann mode
         _actions[:,0] = _actions[:,0] * 3
         _actions[:,1] = _actions[:,1] * 3
-        #_actions[:,2] = _actions[:,2] * 3
         
        # self.actions_driving_motors = torch.cat((self.actions_driving_motors[1:], motor_velocities.unsqueeze(dim=0)))
         #self.actions_steering_motors = torch.cat((self.actions_steering_motors[1:], steering_angles.unsqueeze(dim=0)))
-        #_actions[:,0] *= (_actions[:,1] >= 1.5)
         self.actions_nn = torch.cat((torch.reshape(_actions,(self.num_envs, self.cfg["env"]["numActions"], 1)), self.actions_nn), 2)[:,:,0:3]
-        #_actions[:,0] *= torch.logical_not(((-0.6 < _actions[:,0]) & (_actions[:,0] < 0.6)) & ((_actions[:,1] < -1.2) & (_actions[:,1] > 1.2)))
-        #_actions[:,0] = 0
-        #_actions[:,1] = math.pi
-        #
+
         steering_angles, motor_velocities = Ackermann(_actions[:,0], _actions[:,1])
     
         # # a = torch.ones(1,device='cuda:0')*0.3

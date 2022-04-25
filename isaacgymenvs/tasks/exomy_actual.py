@@ -48,6 +48,7 @@ class Exomy_actual(VecTask):
         self.rew_scales["torque_steering"] = self.cfg["env"]["learn"]["torque_reward_steering"] 
         self.rew_scales["uprightness"] = self.cfg["env"]["learn"]["uprightness_reward"]
         self.rew_scales["motion_contraint"] = self.cfg["env"]["learn"]["motion_contraint_reward"] 
+        self.rew_scales["goal_angle"] = self.cfg["env"]["learn"]["goal_angle_reward"] 
         
         
         super().__init__(config=self.cfg, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless)
@@ -199,7 +200,10 @@ class Exomy_actual(VecTask):
         y = TargetRadius * torch.sin(alpha) + TargetCordy
         self.target_root_positions[env_ids, 0] = x
         self.target_root_positions[env_ids, 1] = y
-        self.target_root_positions[env_ids, 2] = 0
+        #Set height of point(z) according to height in map
+        loc = self.target_root_positions[env_ids, 0:2].add(self.env_origins_tensor[env_ids, 0:2])
+        height = height_lookup(self.tensor_map, loc, self.horizontal_scale, self.vertical_scale, self.shift, loc, torch.zeros(num_sets, 3), self.exo_depth_points_tensor)
+        self.target_root_positions[env_ids, 2] = height
         self.marker_positions[env_ids] = self.target_root_positions[env_ids]
         # copter "position" is at the bottom of the legs, so shift the target up so it visually aligns better
         # self.marker_positions[env_ids, 2] += 0.4
@@ -540,6 +544,7 @@ class Exomy_actual(VecTask):
         self.extras["uprightness_penalty"] = extras['uprightness_penalty']
         self.extras["heading_contraint_penalty"] = extras['heading_contraint_penalty']
         self.extras["motion_contraint_penalty"] = extras['motion_contraint_penalty']
+        self.extras["goal_angle_penalty"] = extras['goal_angle_penalty']
         self.extras["torque_penalty_driving"] = extras['torque_penalty_driving']
         self.extras["torque_penalty_steering"] = extras['torque_penalty_steering']      
 
@@ -620,6 +625,7 @@ def compute_exomy_reward(root_positions, target_root_positions,
     reset = torch.where(torch.abs(root_euler[:,1]) >= 0.78*1.5, ones, reset)  # reset if pitch above 45 degrees(radians)
     
     extras = {}
+    extras['goal_angle_penalty'] = goal_angle_penalty
     extras['pos_reward'] = pos_reward
     extras['collision_penalty'] = collision_penalty
     extras['uprightness_penalty'] = uprightness_penalty

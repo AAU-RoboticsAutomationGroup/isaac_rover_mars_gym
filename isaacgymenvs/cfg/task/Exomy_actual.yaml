@@ -24,7 +24,8 @@ env:
     torque_reward_driving: 0.0 #0.0005
     torque_reward_steering: 0.0  #0.0005 #-1.
     uprightness_reward: 0.0 #0.0005 # -0.000025
-    motion_contraint_reward: 0.0 #0.005
+    motion_contraint_reward: 0.01 #0.005
+    goal_angle_reward: 10.0
 
     # torqueRewardScale: -0.00002 # -0.000025
     # jointAccRewardScale: -0.0005 # -0.0025

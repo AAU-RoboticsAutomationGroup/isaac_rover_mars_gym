@@ -50,7 +50,6 @@ class Exomy_actual(VecTask):
         self.rew_scales["motion_contraint"] = self.cfg["env"]["learn"]["motion_contraint_reward"] 
         self.rew_scales["goal_angle"] = self.cfg["env"]["learn"]["goal_angle_reward"] 
         
-        
         super().__init__(config=self.cfg, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless)
 
         # Retrieves buffer for Actor root states.
@@ -125,6 +124,13 @@ class Exomy_actual(VecTask):
         self.exo_depth_points_tensor = torch.tensor(exo_depth_points, device='cuda:0')
         # Initialize empty location tensor for all robots
         self.exo_locations_tensor = torch.zeros([self.num_envs, 6], device='cuda:0')
+        # Spawn offset. Used for offsetting goal locations.
+        self.spawn_offset = torch.zeros([self.num_envs, 3], device='cuda:0')
+
+        # Move spawn points away from hills and rocks.
+        self.check_spawn_slope(16)
+        self.check_spawn_collision()
+        self.check_spawn_slope(16)
         self.check_spawn_collision()
 
     def create_sim(self):
@@ -154,7 +160,11 @@ class Exomy_actual(VecTask):
     def _create_ground_plane(self):
         # Terrain specifications
         terrain_width = 50 # terrain width [m]
-        terrain_length = 50 # terrain length [m]
+        terrain_length = terrain_width # terrain length [m]
+        self.terrain_side_length = terrain_width
+        if terrain_length != terrain_width:
+            print("!!!   terrain width != terrain height, PLEASE FIX   !!!")
+        # KEEP TERRAIN WIDTH AND LENGTH EQUAL!!! - check_spawn_slope will not work if the are not.  
         horizontal_scale = 0.05 # resolution per meter 
         vertical_scale = 0.005 # vertical resolution [m]
         self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
@@ -188,23 +198,82 @@ class Exomy_actual(VecTask):
             dist_rocks[:] = dist_rocks[:]-self.rock_positions[:,3]                               # Calculate distance to nearest point of all rocks
             nearest_rock = torch.min(dist_rocks,dim=1)[0]                                   # Find the closest rock to each robot
             self.initial_root_states[:,0] = torch.where(nearest_rock[:] <= 0.4,self.initial_root_states[:,0]+0.05,self.initial_root_states[:,0])
+
+    def check_spawn_slope(self, angle): 
+        
+        run_once = False
+        offset_tensor = torch.zeros_like(self.initial_root_states[:, 0:2])
+
+        for i in range(1,5000):
             
+            offset = self.horizontal_scale # Move amount for each iteration - also determines the distance with which slope is measured.
+
+            loc = self.initial_root_states[:, 0:2].add(self.env_origins_tensor[:, 0:2]) # Location of robots on map
+            height_spawn = height_lookup(self.tensor_map, loc, self.horizontal_scale, self.vertical_scale, self.shift, loc, torch.zeros_like(self.exo_locations_tensor[:, 0:3]), self.exo_depth_points_tensor)
+            
+            # Slope in x direction
+            loc_offset_x = loc
+            loc_offset_x[:,0] += offset
+            height_next_to_spawn_x = height_lookup(self.tensor_map, loc_offset_x, self.horizontal_scale, self.vertical_scale, self.shift, loc_offset_x, torch.zeros_like(self.exo_locations_tensor[:, 0:3]), self.exo_depth_points_tensor)
+            
+            # Slope in y direction
+            loc_offset_y = loc
+            loc_offset_y[:,1] += offset
+            height_next_to_spawn_y = height_lookup(self.tensor_map, loc_offset_y, self.horizontal_scale, self.vertical_scale, self.shift, loc_offset_y, torch.zeros_like(self.exo_locations_tensor[:, 0:3]), self.exo_depth_points_tensor)
+            
+            # Slopes
+            slope_x = height_spawn - height_next_to_spawn_x
+            slope_y = height_spawn - height_next_to_spawn_y
+
+            # Highest slope
+            slope = torch.squeeze(torch.dstack((slope_x, slope_y)))
+            slope = torch.amax(torch.abs(slope),1)            
+
+            # Threshold for slope
+            max_angle = math.sin(angle*0.0174533) #10 degrees
+            slope_treshold = offset * max_angle
+            offset_t = torch.ones_like(slope_x) * offset # Threshold as Tensor
+
+            if run_once == False:
+                # Fill with correct offset in direction of slope
+                offset_tensor[:, 0] = torch.where(slope_x >= 0, offset_t, -offset_t)
+                offset_tensor[:, 1] = torch.where(slope_y >= 0, offset_t, -offset_t)
+
+                # 50 % chance of moving towards top of hill
+                norm_dist = torch.randn(offset_tensor.shape[0], device='cuda:0')
+                rand_factor = torch.copysign(torch.ones_like(offset_tensor[:,0]), norm_dist)
+                offset_tensor *= rand_factor.unsqueeze(-1)
+
+                run_once = True
+
+            # Move if slope is high
+            self.initial_root_states[:,0] = torch.where((torch.abs(slope) > slope_treshold), self.initial_root_states[:,0] + offset_tensor[:,0], self.initial_root_states[:,0])
+            self.initial_root_states[:,1] = torch.where((torch.abs(slope) > slope_treshold), self.initial_root_states[:,1] + offset_tensor[:,1], self.initial_root_states[:,1])
+            self.spawn_offset[:,0] = torch.where((torch.abs(slope) > slope_treshold), self.spawn_offset[:,0] + offset_tensor[:,0], self.spawn_offset[:,0])
+            self.spawn_offset[:,1] = torch.where((torch.abs(slope) > slope_treshold), self.spawn_offset[:,1] + offset_tensor[:,1], self.spawn_offset[:,1])
+
+            # Adjust offset if moved outside map
+            offset_tensor[:, 0] = torch.where(self.initial_root_states[:,0].add(self.env_origins_tensor[:, 0]) > 0, offset_tensor[:,0], -offset_tensor[:,0])
+            offset_tensor[:, 1] = torch.where(self.initial_root_states[:,1].add(self.env_origins_tensor[:, 1]) > 0, offset_tensor[:,1], -offset_tensor[:,1])
+            offset_tensor[:, 0] = torch.where(self.initial_root_states[:,0].add(self.env_origins_tensor[:, 0]) < self.terrain_side_length+2*self.shift, offset_tensor[:,0], -offset_tensor[:,0])
+            offset_tensor[:, 1] = torch.where(self.initial_root_states[:,1].add(self.env_origins_tensor[:, 1]) < self.terrain_side_length+2*self.shift, offset_tensor[:,1], -offset_tensor[:,1])
+
     def set_targets(self, env_ids):
         num_sets = len(env_ids)
         # set target position randomly with x, y in (-2, 2) and z in (1, 2)
         alpha = 2 * math.pi * torch.rand(num_sets, device=self.device)
-        TargetRadius = 3
+        TargetRadius = 4
         TargetCordx = 0
         TargetCordy = 0
         x = TargetRadius * torch.cos(alpha) + TargetCordx
         y = TargetRadius * torch.sin(alpha) + TargetCordy
-        self.target_root_positions[env_ids, 0] = x
-        self.target_root_positions[env_ids, 1] = y
+        self.target_root_positions[env_ids, 0] = x + self.spawn_offset[env_ids, 0]
+        self.target_root_positions[env_ids, 1] = y + self.spawn_offset[env_ids, 1]
         #Set height of point(z) according to height in map
         loc = self.target_root_positions[env_ids, 0:2].add(self.env_origins_tensor[env_ids, 0:2])
         height = height_lookup(self.tensor_map, loc, self.horizontal_scale, self.vertical_scale, self.shift, loc, torch.zeros(num_sets, 3), self.exo_depth_points_tensor)
         self.target_root_positions[env_ids, 2] = height
-        self.marker_positions[env_ids] = self.target_root_positions[env_ids]
+        self.marker_positions[env_ids] = self.target_root_positions[env_ids] 
         # copter "position" is at the bottom of the legs, so shift the target up so it visually aligns better
         # self.marker_positions[env_ids, 2] += 0.4
         actor_indices = self.all_actor_indices[env_ids, 1].flatten()
@@ -273,9 +342,11 @@ class Exomy_actual(VecTask):
             gymapi.DOF_MODE_VEL,  #14 #FR DRIVE
         ]
 
-        exomy_dof_props["stiffness"].fill(800.0)
+        exomy_dof_props["friction"].fill(0.01)
+        exomy_dof_props["stiffness"].fill(1000)
         exomy_dof_props["damping"].fill(0.1)
-        exomy_dof_props["friction"].fill(0.0001)
+        exomy_dof_props["armature"].fill(0.001)
+        exomy_dof_props["effort"].fill(100)
         pose = gymapi.Transform()
         pose.p.z = 0.5
         # asset is rotated z-up by default, no additional rotations needed
@@ -351,7 +422,7 @@ class Exomy_actual(VecTask):
         self.root_states[env_ids, 3:7] = RQuat
         
         # Spawn exomy at the correct z-height.
-        loc = self.env_origins_tensor[env_ids]
+        loc = self.env_origins_tensor[env_ids] + self.initial_root_states[env_ids, 0:3]
         height = height_lookup(self.tensor_map, loc, self.horizontal_scale, self.vertical_scale, self.shift, loc, torch.zeros(num_resets, 3), self.exo_depth_points_tensor)
         self.root_states[env_ids, 2] = height+0.25
 
@@ -495,7 +566,7 @@ class Exomy_actual(VecTask):
         self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3], exo_rot, self.exo_depth_points_tensor)
         #print(torch.max(self.elevationMap[2]))
         # Visualize points for robot [0]
-        visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1,self.exo_locations_tensor[:,0:3])
+        #visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1,self.exo_locations_tensor[:,0:3])
         
         # Calculate a direction vector for the robot
         self.direction_vector[:,0] = torch.cos(self.root_euler[..., 2] - (math.pi/2)) # x value
@@ -517,9 +588,9 @@ class Exomy_actual(VecTask):
         # heading_diff = torch.arccos(angle)
         #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
         #self.obs_buf[..., 0:2] = (self.target_root_positions[..., 0:2] - self.root_positions[..., 0:2]) / 4
-        self.obs_buf[..., 0] = torch.linalg.norm(self.target_vector,dim=1) / 4
-        self.obs_buf[..., 1] = (heading_diff) / 3
-        self.obs_buf[..., 2] = (self.root_euler[..., 2]  - (math.pi/2)) + (math.pi / (2 * math.pi))
+        self.obs_buf[..., 0] = torch.linalg.norm(self.target_vector,dim=1)
+        self.obs_buf[..., 1] = torch.where((torch.linalg.norm(self.target_vector,dim=1) < 0.02), torch.zeros(heading_diff.shape[0], device='cuda:0'), heading_diff)
+        self.obs_buf[..., 2] = (self.root_euler[..., 0])
         self.obs_buf[..., 3:5] = self.actions_nn[:,:,0] / 3
         self.obs_buf[...,self._num_observations:(self._num_observations+self._num_camera_inputs)] = self.elevationMap * 3
         #print(torch.max(self.obs_buf[0,0:152]))
@@ -565,7 +636,11 @@ def compute_exomy_reward(root_positions, target_root_positions,
     target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
 
     # eps = 1e-7
-
+    direction_vector = torch.zeros([ones.shape[0], 2], device='cuda:0')
+    direction_vector[:,0] = torch.cos(root_euler[..., 2] - (math.pi/2)) # x value
+    direction_vector[:,1] = torch.sin(root_euler[..., 2] - (math.pi/2)) # y value
+    target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
+    heading_diff = torch.atan2(target_vector[:,0] * direction_vector[:,1] - target_vector[:,1]*direction_vector[:,0],target_vector[:,0]*direction_vector[:,0]+target_vector[:,1]*direction_vector[:,1])
 
 
     # dot =  ((target_vector[..., 0] * torch.cos(root_euler[..., 2] - (math.pi/2))) + (target_vector[..., 1] * torch.sin(root_euler[..., 2] - (math.pi/2)))) / ((torch.sqrt(torch.square(target_vector[..., 0]) + torch.square(target_vector[..., 1]))) * torch.sqrt(torch.square(torch.cos(root_euler[..., 2] - (math.pi/2))) + torch.square(torch.sin(root_euler[..., 2] - (math.pi/2)))))
@@ -610,13 +685,16 @@ def compute_exomy_reward(root_positions, target_root_positions,
     torque_penalty_driving = -torch.abs(driving_forces).sum(dim=1) * rew_scales['torque_driving']
     torque_penalty_steering = -torch.abs(steering_forces).sum(dim=1) * rew_scales['torque_steering']
 
-    reward = pos_reward + collision_penalty + uprightness_penalty + heading_contraint_penalty + motion_contraint_penalty + torque_penalty_driving + torque_penalty_steering
+    #goal_angle_penalty = (heading_diff/3.1415) * rew_scales['goal_angle']
+    goal_angle_penalty = torch.where(torch.abs(heading_diff) > 1, -torch.abs(heading_diff*0.3*rew_scales['goal_angle']), zero_reward)
+
+    reward = pos_reward + collision_penalty + uprightness_penalty + heading_contraint_penalty + motion_contraint_penalty + torque_penalty_driving + torque_penalty_steering + goal_angle_penalty
  
 
 
     # resets due to episode length'
     reset = torch.where(progress_buf >= max_episode_length - 1, ones, die)
-    reset = torch.where(target_dist >= 4, ones, reset)
+    reset = torch.where(target_dist >= 5, ones, reset)
     reset = torch.where(nearest_rock <= 0.26, ones, reset)  # reset if colliding
     # reward = torch.where(nearest_rock <= 0.26, reward-1000, reward)  # reset if colliding
     reset = torch.where(target_dist <= 0.2, ones, reset)  # reset if colliding

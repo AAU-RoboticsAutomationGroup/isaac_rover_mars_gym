@@ -29,7 +29,7 @@ env = wrap_env(env)
 device = env.device
 
 # Instantiate a RandomMemory as rollout buffer (any memory can be used for this)
-memory = RandomMemory(memory_size=25, num_envs=env.num_envs, device=device)
+memory = RandomMemory(memory_size=100, num_envs=env.num_envs, device=device)
 
 
 # Instantiate the agent's models (function approximators).
@@ -50,9 +50,9 @@ for model in models_ppo.values():
 # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#configuration-and-hyperparameters
 # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#configuration-and-hyperparameters
 cfg_ppo = PPO_DEFAULT_CONFIG.copy()
-cfg_ppo["rollouts"] = 25 #20
+cfg_ppo["rollouts"] = 100 #20
 cfg_ppo["learning_epochs"] = 4 #5
-cfg_ppo["mini_batches"] = 25 #5
+cfg_ppo["mini_batches"] = 100 #5
 cfg_ppo["discount_factor"] = 0.99 # 0.999
 cfg_ppo["lambda"] = 0.95 # 0.99
 cfg_ppo["policy_learning_rate"] = 0.0003
@@ -69,7 +69,7 @@ cfg_ppo["kl_threshold"] = 0.008
 # logging to TensorBoard and write checkpoints each 120 and 3000 timesteps respectively
 cfg_ppo["experiment"]["write_interval"] = 120
 cfg_ppo["experiment"]["checkpoint_interval"] = 3000
-cfg_ppo["experiment"]["experiment_name"] = "TestWithMotionConstraintv5EpisodeLength1500HElongerhorizonHigherPenaltyV12Horizon25"
+cfg_ppo["experiment"]["experiment_name"] = "Horizon100"
 agent = PPO(models=models_ppo,
             memory=memory, 
             cfg=cfg_ppo, 

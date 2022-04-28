@@ -26,7 +26,7 @@ def run_tests():
     #config = OmegaConf.to_yaml(cfg)
     path = 'cfg/tests/test6.yaml'
     cfg = OmegaConf.load(path)
-    timesteps = 100000
+    timesteps = 200000
     agent = []
     for test in cfg['tests']:
         # Load config for current test

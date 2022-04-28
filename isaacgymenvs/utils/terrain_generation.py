@@ -16,7 +16,7 @@ def cfa(cfa: float, rock_diameter: float):
     return Fk(rock_diameter,cfa)
 
 def add_rocks_terrain(terrain, rock_height = (0.1,0.2)):
-    k = 0.05
+    k = 0.35
     #k = 0.15    # total fractional area covered by rocks
     #sample_size = int(0.5 / terrain.horizontal_scale)
     #probs = np.arange(terrain.horizontal_scale, sample_size, terrain.horizontal_scale)
@@ -159,8 +159,8 @@ def gaussian_terrain(terrain,kernel_radius=15,max_height=5):#terrain,gaussian_ra
         #terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel] * max_height* 1/terrain.vertical_scale )
 
         # Random height
-        #terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel] * random.uniform(-max_height,max_height)* 1/terrain.vertical_scale )
-        terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel]* 0/terrain.vertical_scale )
+        terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel] * random.uniform(-max_height,max_height)* 1/terrain.vertical_scale )
+        #terrain.height_field_raw[from_y: to_y, from_x: to_x] += (kernel[from_y_kernel:to_y_kernel,from_x_kernel:to_x_kernel]* 0/terrain.vertical_scale )
        # print(HaltonSample[i])
 
     return terrain

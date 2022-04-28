@@ -26,13 +26,13 @@ def run_tests():
     #config = OmegaConf.to_yaml(cfg)
     path = 'cfg/tests/test.yaml'
     cfg = OmegaConf.load(path)
-    timesteps = 100000
+    timesteps = 200000
     agent = []
     for test in cfg['tests']:
         # Load config for current test
         config = cfg['tests'][test]
         # Instantiate a RandomMemory as rollout buffer (any memory can be used for this)
-        memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=device)
+        memory = RandomMemory(memory_size=config['horizon_length'], num_envs=env.num_envs, device=device)
         # Get model for reinforcement learning algorithm
         model = get_model(config)
         # Get config file for reinforcement learning algo
@@ -57,7 +57,7 @@ def get_model(config):
         # Initialize the models' parameters (weights and biases) using a Gaussian distribution
         for model in models.values():
             print("hej")
-            model.init_parameters(method_name="normal_", mean=0.0, std=0.1)   
+            model.init_parameters(method_name="normal_", mean=0.0, std=0.05)   
         print('ppo')
     elif config['algorithm'] == 'TD3':
         models = {  "policy": DeterministicActor(env.observation_space, env.action_space, device, clip_actions=True),
@@ -94,11 +94,11 @@ def get_model(config):
 def get_cfg(config):
         if config['algorithm'] == 'ppo':
             cfg_ppo = PPO_DEFAULT_CONFIG.copy()
-            cfg_ppo["rollouts"] = 16
+            cfg_ppo["rollouts"] = config['horizon_length']
             cfg_ppo["learning_epochs"] = 4
-            cfg_ppo["mini_batches"] = 2
+            cfg_ppo["mini_batches"] = config['horizon_length']
             cfg_ppo["discount_factor"] = 0.99
-            cfg_ppo["lambda"] = 0.99
+            cfg_ppo["lambda"] = 0.95
             cfg_ppo["policy_learning_rate"] = 0.0003
             cfg_ppo["value_learning_rate"] = 0.0003
             cfg_ppo["random_timesteps"] = 0

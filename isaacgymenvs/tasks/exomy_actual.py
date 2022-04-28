@@ -286,22 +286,22 @@ class Exomy_actual(VecTask):
             offset_tensor[:, 0] = torch.where(self.initial_root_states[:,0].add(self.env_origins_tensor[:, 0]) < self.terrain_side_length+2*self.shift, offset_tensor[:,0], -offset_tensor[:,0])
             offset_tensor[:, 1] = torch.where(self.initial_root_states[:,1].add(self.env_origins_tensor[:, 1]) < self.terrain_side_length+2*self.shift, offset_tensor[:,1], -offset_tensor[:,1])
 
- def generate_goals(self,env_ids,radius=3):
-
+    def generate_goals(self,env_ids,radius=3):
         reset_buf_len = 1
         while (reset_buf_len > 0):
             self.random_goals(env_ids, radius=radius) # Generate random goals
             env_ids, reset_buf_len = self.check_goal_collision(env_ids) # Check if goals collides with random rocks
-  def random_goals(self, env_ids, radius):
-      num_sets = len(env_ids)
-      alpha = 2 * math.pi * torch.rand(num_sets, device=self.device)
-      TargetRadius = radius
-      TargetCordx = 0
-      TargetCordy = 0
-      x = TargetRadius * torch.cos(alpha) + TargetCordx
-      y = TargetRadius * torch.sin(alpha) + TargetCordy
-      self.target_root_positions[env_ids, 0] = x + self.spawn_offset[env_ids, 0]
-      self.target_root_positions[env_ids, 1] = y + self.spawn_offset[env_ids, 1]
+
+    def random_goals(self, env_ids, radius):
+        num_sets = len(env_ids)
+        alpha = 2 * math.pi * torch.rand(num_sets, device=self.device)
+        TargetRadius = radius
+        TargetCordx = 0
+        TargetCordy = 0
+        x = TargetRadius * torch.cos(alpha) + TargetCordx
+        y = TargetRadius * torch.sin(alpha) + TargetCordy
+        self.target_root_positions[env_ids, 0] = x + self.spawn_offset[env_ids, 0]
+        self.target_root_positions[env_ids, 1] = y + self.spawn_offset[env_ids, 1]
 
     def set_targets(self, env_ids):
         num_sets = len(env_ids)
@@ -311,7 +311,7 @@ class Exomy_actual(VecTask):
         self.marker_positions[env_ids] = self.target_root_positions[env_ids]
         
         global_pos = self.target_root_positions[env_ids, 0:2].add(self.env_origins_tensor[env_ids, 0:2])
-        height_offset = height_lookup(self.tensor_map, global_pos, self.horizontal_scale, self.vertical_scale, self.shift, loc, torch.zeros(num_sets, 3), self.exo_depth_points_tensor)
+        height_offset = height_lookup(self.tensor_map, global_pos, self.horizontal_scale, self.vertical_scale, self.shift, global_pos, torch.zeros(num_sets, 3), self.exo_depth_points_tensor)
         self.target_root_positions[env_ids, 2] = height_offset
         self.marker_positions[env_ids] = self.target_root_positions[env_ids] 
         actor_indices = self.all_actor_indices[env_ids, 1].flatten()

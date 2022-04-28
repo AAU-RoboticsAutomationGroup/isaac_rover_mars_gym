@@ -121,7 +121,7 @@ def gaussian_terrain(terrain,kernel_radius=15,max_height=5):#terrain,gaussian_ra
         height (float): Maximimum (and minimum) height of terrain
         n (int): Number of kernels per 100m^2
     """
-    
+    random.seed(10)
     kernel_radius = kernel_radius # radius in meters [m]
     max_height = max_height # Max height in meters [m]
 
@@ -133,7 +133,7 @@ def gaussian_terrain(terrain,kernel_radius=15,max_height=5):#terrain,gaussian_ra
     kernel = gaussian_kernel(kernel_diameter,sigma=0.4)
 
 
-    n_kernels = int((terrain.length/ (kernel_radius * 2)) * (terrain.width/ (kernel_radius * 2))) + 3
+    n_kernels = int((terrain.length/ (kernel_radius * 2)) * (terrain.width/ (kernel_radius * 2))) + 8
 
     # Generate random placement of kernels
     sampler_halton = qmc.Halton(d=2, scramble=False)

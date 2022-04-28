@@ -28,7 +28,6 @@ env:
     motion_contraint_reward: -0.01  #0.005
     acceleration_reward: 0.0 #-0.0005
     vel_near_goal_reward: 0.0 #-0.005
-    motion_contraint_reward: 0.01 #0.005
     goal_angle_reward: 10.0
 
     # torqueRewardScale: -0.00002 # -0.000025

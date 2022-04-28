@@ -1,5 +1,5 @@
 # used to create the object
-name: Exomy_actual
+name: Exomy_endtoend
 
 physics_engine: ${..physics_engine}
 

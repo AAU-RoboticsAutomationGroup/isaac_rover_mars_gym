@@ -1,0 +1,46 @@
+ tests: 
+  test_encoder1: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [60,20]
+    activation_function: "leakyrelu"
+    activation_function_critic: "leakyrelu"
+    activation_function_encoder: "leakyrelu"
+    algorithm: "ppo"
+    horizon_length: 30
+  test_encoder2: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [60,20]
+    activation_function: "relu"
+    activation_function_critic: "relu"
+    activation_function_encoder: "relu"
+    algorithm: "ppo"
+    horizon_length: 30
+  test_encoder3: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [60,20]
+    activation_function: "elu"
+    activation_function_critic: "elu"
+    activation_function_encoder: "elu"
+    algorithm: "ppo"
+    horizon_length: 30
+  test_encoder4: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [60,20]
+    activation_function: "tanh"
+    activation_function_critic: "tanh"
+    activation_function_encoder: "tanh"
+    algorithm: "ppo"
+    horizon_length: 30
+  test_encoder5: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [60,20]
+    activation_function: "relu6"
+    activation_function_critic: "relu6"
+    activation_function_encoder: "relu6"
+    algorithm: "ppo"
+    horizon_length: 30

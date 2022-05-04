@@ -24,7 +24,7 @@ device = env.device
 #@hydra.main(config_path="./cfg", config_name="config")
 def run_tests():
     #config = OmegaConf.to_yaml(cfg)
-    path = 'cfg/tests/test.yaml'
+    path = 'cfg/tests/test_encoder.yaml'
     cfg = OmegaConf.load(path)
     timesteps = 200000
     agent = []
@@ -32,7 +32,7 @@ def run_tests():
         # Load config for current test
         config = cfg['tests'][test]
         # Instantiate a RandomMemory as rollout buffer (any memory can be used for this)
-        memory = RandomMemory(memory_size=config['horizon_length'], num_envs=env.num_envs, device=device)
+        memory = RandomMemory(memory_size=config['horizon_length']  , num_envs=env.num_envs, device=device)
         # Get model for reinforcement learning algorithm
         model = get_model(config)
         # Get config file for reinforcement learning algo
@@ -40,7 +40,7 @@ def run_tests():
         # Configure how often to save
         model_cfg["experiment"]["write_interval"] = 120
         model_cfg["experiment"]["checkpoint_interval"] = 3000
-        model_cfg["experiment"]["experiment_name"] = config['algorithm'] +'Actor' + str(config['actor_mlp']) + config['activation_function'] + '_Critic' + str(config['critic_mlp']) + config['activation_function_critic'] + '_Encoder' + str(config['encoder_mlp']) + config['activation_function_encoder'] + '_' + test + '_step' + str(timesteps)
+        model_cfg["experiment"]["experiment_name"] = "test_encoder_" + config['algorithm'] +'Actor' + str(config['actor_mlp']) + config['activation_function'] + '_Critic' + str(config['critic_mlp']) + config['activation_function_critic'] + '_Encoder' + str(config['encoder_mlp']) + config['activation_function_encoder'] + '_' + "horzion_" + str(config['horizon_length']) + "_" +  test + '_step' + str(timesteps)
         agent = get_agent(config, model, memory, model_cfg, env)
         cfg_trainer = {"timesteps": timesteps, "headlesAs": True}
         trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)

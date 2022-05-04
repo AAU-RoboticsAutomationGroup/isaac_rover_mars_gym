@@ -21,6 +21,7 @@ INSTALL_REQUIRES = [
     "rl-games==1.1.3",
     "scipy==1.8.0",
     "torchgeometry==0.1.2",
+    "pymeshlab",
 ]
 
 # Installation operation

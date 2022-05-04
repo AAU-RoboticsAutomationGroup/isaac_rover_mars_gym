@@ -4,6 +4,7 @@ import math
 from isaacgym import gymutil, gymapi
 from isaacgym.terrain_utils import *
 from scipy.stats import qmc
+import pymeshlab
 import random
 import torch
 
@@ -22,14 +23,16 @@ def add_rocks_terrain(terrain, rock_height = (0.1,0.2)):
     #probs = np.arange(terrain.horizontal_scale, sample_size, terrain.horizontal_scale)
     rock = torch.empty(1,4,device="cuda:0") # [x, y, z, radius]
     rocks = torch.empty(0,4,device="cuda:0")
-    scale = terrain.horizontal_scale
-    num_rock_sizes = int(0.5/scale)
+    res = terrain.horizontal_scale
+    rock_distribution_step = max(0.10,res)
+    scale = int(rock_distribution_step / res)
+    num_rock_sizes = int(0.5/rock_distribution_step)
     sampler_halton = qmc.Halton(d=2, scramble=False)
     for i in range(1,num_rock_sizes):
         terrain_height_scaler = 1
-        rock_radius = (i * scale) / 2        
-        lower_bound = terrain.length * terrain.width * cfa(k,rock_diameter=i*scale)
-        upper_bound = terrain.length * terrain.width * cfa(k,rock_diameter=(i+1)*scale)
+        rock_radius = (i * rock_distribution_step) / 2        
+        lower_bound = terrain.length * terrain.width * cfa(k,rock_diameter=i*rock_distribution_step)
+        upper_bound = terrain.length * terrain.width * cfa(k,rock_diameter=(i+1)*rock_distribution_step)
         num_rocks = int(lower_bound-upper_bound)
 
         random_positions = (sampler_halton.random(n=num_rocks))
@@ -38,19 +41,19 @@ def add_rocks_terrain(terrain, rock_height = (0.1,0.2)):
         random_positions[:,1] *= terrain.num_cols
         random_positions = random_positions.astype(int)
         # print()
-        kernel = scaleMax(gaussian_kernel(i+1,sigma=0.7,normalized=False))
+        kernel = scaleMax(gaussian_kernel(i*scale+1,sigma=1,normalized=False))
 
-        if kernel[int((i+1)/2)-1,int((i+1)/2)] < 1:
-            kernel[int((i+1)/2),int((i+1)/2)] = kernel[int((i+1)/2)-1,int((i+1)/2)]
+        if kernel[int((i*scale+1)/2)-1,int((i*scale+1)/2)] < 1:
+            kernel[int((i*scale+1)/2),int((i*scale+1)/2)] = kernel[int((i*scale+1)/2)-1,int((i*scale+1)/2)]
             #terrain_height_scaler = 0.5
 
-        kernel = np.multiply(np.ones((1+i,1+i)) * random.uniform(rock_height[0], rock_height[1]), scaleMax(kernel) * (1/(1+np.exp(-i*0.3)))*2) * terrain_height_scaler#+ np.ones((1+i,1+i)) * i* scale *0.2
+        kernel = np.multiply(np.ones((1+i*scale,1+i*scale)) * random.uniform(rock_height[0], rock_height[1]), scaleMax(kernel) * (1/(1+np.exp(-i*scale*0.3)))*2) * terrain_height_scaler#+ np.ones((1+i,1+i)) * i* scale *0.2
         for p in random_positions:
             try:
-                terrain.height_field_raw[p[0]: p[0]+1+i, p[1]: p[1]+1+i] += (kernel*1/terrain.vertical_scale)
+                terrain.height_field_raw[p[0]: p[0]+1+i*scale, p[1]: p[1]+1+i*scale] += (kernel*1/terrain.vertical_scale) * (random.random()*0.4 + 0.6) # 0.6*0.4 is random height scaling
                 try:
-                    rock[0][0] = p[0] * scale + rock_radius # x
-                    rock[0][1] = p[1] * scale + rock_radius # y
+                    rock[0][0] = p[0] * res + rock_radius # x
+                    rock[0][1] = p[1] * res + rock_radius # y
                     rock[0][2] = 0                  # z
                     rock[0][3] = rock_radius        # radius
                     rocks = torch.cat((rocks, rock))  
@@ -229,6 +232,33 @@ def convert_heightfield_to_trimesh1(height_field_raw, horizontal_scale, vertical
 
     return vertices, triangles
 
+def polygon_reduction(vertices, triangles, target_vertices=50000):
+        #Target number of vertex
+        TARGET=target_vertices
+        # Create mesh
+        m = pymeshlab.Mesh(vertices, triangles)
+        # Create a meshset
+        ms = pymeshlab.MeshSet()
+        # Add mesh to meshset
+        ms.add_mesh(m, "terrain")
+
+        #Estimate number of faces to have 100+10000 vertex using Euler
+        numFaces = 100 + 2*TARGET
+        #Simplify the mesh - only first simplification is aggresive
+        while (ms.current_mesh().vertex_number() > TARGET):
+            ms.apply_filter('meshing_decimation_quadric_edge_collapse', targetfacenum=numFaces, preservenormal=True)
+            print("Decimated to", numFaces, "faces mesh has", ms.current_mesh().vertex_number(), "vertex")
+            #Refine estimation to converge to TARGET vertex number
+            numFaces = numFaces - (ms.current_mesh().vertex_number() - TARGET)
+
+        # Save final mesh
+        m = ms.current_mesh()
+        
+        # Get vertices as float32 (Supported by isaac gym)
+        vertices = m.vertex_matrix().astype('float32')
+        # Get faces as unit32 (Supported by isaac gym)
+        faces =  m.face_matrix().astype('uint32')
+        return vertices, faces
 
 class SubTerrain1:
     def __init__(self, terrain_name="terrain", width=256, length=256, vertical_scale=1.0, horizontal_scale=1.0):

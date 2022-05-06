@@ -21,7 +21,7 @@ def heightmap_distribution(x_limit, y_limit, square=False, y_start=0.296, delta=
         delta += front_heavy
 
         flag = True
-        %
+        
         if square==False:
             limit = limit_at_x(y)
         else:

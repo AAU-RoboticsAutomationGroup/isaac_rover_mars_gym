@@ -128,7 +128,10 @@ class Exomy_actual(VecTask):
         self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
 
         # Depth detection points. Origin is body origin(Can be identified in SolidWorks.)
-        exo_depth_points = heightmap_distribution( delta=0.1, limit=1.2,front_heavy=0.0, plot=False) #Uniform
+        #exo_depth_points = heightmap_distribution( 0.375, 1.2, square=True, delta=0.05, front_heavy=0.0, plot=True) #Small square
+        exo_depth_points = heightmap_distribution( 1.12, 1.2, square=True, y_start=0, delta=0.05, front_heavy=0.0, plot=True) #Big square
+        #exo_depth_points = heightmap_distribution( 1.12, 1.2, square=False, y_start=0.296, delta=0.05, front_heavy=0.0, plot=True) #Old dist
+        print(exo_depth_points.shape)
 
         # heightmap_distribution( delta=0.07, limit=2,front_heavy=0.012, plot=False) # Weigted little towards front
         # heightmap_distribution( delta=0.06, limit=1.6,front_heavy=0.01, plot=True) # Weigted more towards front
@@ -198,7 +201,7 @@ class Exomy_actual(VecTask):
         self.heightfield[0:int(terrain_width/horizontal_scale),:] = rock_heigtfield.height_field_raw
         vertices, triangles = convert_heightfield_to_trimesh1(self.heightfield, horizontal_scale=horizontal_scale, vertical_scale=vertical_scale, slope_threshold=None)
         # Decimate mesh and reduce number of vertices
-        vertices, triangles = polygon_reduction(vertices, triangles, target_vertices=200000)
+        vertices, triangles = polygon_reduction(vertices, triangles, target_vertices=50000)
 
         self.tensor_map = torch.tensor(self.heightfield, device='cuda:0')
         self.horizontal_scale = horizontal_scale

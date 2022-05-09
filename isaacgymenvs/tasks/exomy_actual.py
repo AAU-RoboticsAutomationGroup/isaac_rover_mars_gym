@@ -33,7 +33,7 @@ class Exomy_actual(VecTask):
         self._num_camera_inputs = 1080
         self._num_observations = 4
         self.cfg["env"]["numCamera"] = self._num_camera_inputs
-        self.cfg["env"]["numObservations"] = self._num_observations + self._num_camera_inputs
+        self.cfg["env"]["numObservations"] = self._num_observations + self._num_camera_inputs#*5
         
         self.cfg["env"]["numActions"] = 2
         self.max_effort_vel = 5.2
@@ -135,12 +135,16 @@ class Exomy_actual(VecTask):
 
         self.direction_vector = torch.zeros([self.num_envs, 2], device='cuda:0')
         # Convert numpy to tensor
-        self.exo_depth_points_tensor = torch.tensor(exo_depth_points, device='cuda:0')
+        self.exo_depth_points_tensor = torch.tensor(exo_depth_points, device=self.device)
         # Initialize empty location tensor for all robots
-        self.exo_locations_tensor = torch.zeros([self.num_envs, 6], device='cuda:0')
-        # Spawn offset. Used for offsetting goal locations.
-        self.spawn_offset = torch.zeros([self.num_envs, 3], device='cuda:0')
+        self.exo_locations_tensor = torch.zeros([self.num_envs, 6], device=self.device)
+        # Tensor for heightmap memory
+        self.heightmap_memory = torch.zeros(16,self.num_envs, self._num_camera_inputs,device=self.device) # save 16 timesteps -> 4 secs
 
+
+        # Spawn offset. Used for offsetting goal locations.
+        self.spawn_offset = torch.zeros([self.num_envs, 3], device=self.device)
+        
         # Move spawn points away from hills and rocks.
         self.check_spawn_slope(16)
         self.check_spawn_collision()
@@ -179,7 +183,8 @@ class Exomy_actual(VecTask):
         if terrain_length != terrain_width:
             print("!!!   terrain width != terrain height, PLEASE FIX   !!!")
         # KEEP TERRAIN WIDTH AND LENGTH EQUAL!!! - check_spawn_slope will not work if the are not.  
-        horizontal_scale = 0.05 # resolution per meter 
+        horizontal_scale = 0.025
+         # resolution per meter 
         vertical_scale = 0.005 # vertical resolution [m]
         self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
 
@@ -193,19 +198,22 @@ class Exomy_actual(VecTask):
         rock_heigtfield, self.rock_positions = add_rocks_terrain(terrain=terrain)
         self.heightfield[0:int(terrain_width/horizontal_scale),:] = rock_heigtfield.height_field_raw
         vertices, triangles = convert_heightfield_to_trimesh1(self.heightfield, horizontal_scale=horizontal_scale, vertical_scale=vertical_scale, slope_threshold=None)
+        # Decimate mesh and reduce number of vertices
+        vertices, triangles = polygon_reduction(vertices, triangles, target_vertices=50000)
+
         self.tensor_map = torch.tensor(self.heightfield, device='cuda:0')
         self.horizontal_scale = horizontal_scale
         self.vertical_scale = vertical_scale
         tm_params = gymapi.TriangleMeshParams()
+
         tm_params.nb_vertices = vertices.shape[0]
         tm_params.nb_triangles = triangles.shape[0]
-        
         # If the gound plane should be shifted:
         self.shift = -5
         tm_params.transform.p.x = self.shift
         tm_params.transform.p.y = self.shift
         self.gym.add_triangle_mesh(self.sim, vertices.flatten(), triangles.flatten(), tm_params)
-    
+
     def check_spawn_collision(self):
         #self.initial_root_states[:,0] = torch.where(nearest_rock[:] <= 0.25,self.initial_root_states[:,0]+0.05,self.initial_root_states[:,0])
         for i in range(1,10000):
@@ -589,7 +597,15 @@ class Exomy_actual(VecTask):
         # Set 
         self.gym.set_dof_velocity_target_tensor(self.sim, gymtorch.unwrap_tensor(actions_tensor)) #)
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(actions_tensor)) #)
-        
+    #     start = self._num_observations
+    #     end =  self._num_observations+self._num_camera_inputs
+    #     new_heightmap_entry = self.obs_buf[...,start:end]
+    #     new_heightmap_entry = new_heightmap_entry.unsqueeze(dim=0)
+    #     self.heightmap_memory = self.push_to_tensor(self.heightmap_memory, new_heightmap_entry)
+
+    # def push_to_tensor(self, tensor, x):
+    #     return torch.cat((tensor[1:], x)) 
+
     def post_physics_step(self):
         # implement post-physics simulation code here
         #    - e.g. compute reward, compute observations
@@ -643,6 +659,13 @@ class Exomy_actual(VecTask):
         #self.obs_buf[..., 2] = (self.root_euler[..., 2])
         self.obs_buf[..., 2:4] = self.actions_nn[:,:,0] / 3
         self.obs_buf[...,self._num_observations:(self._num_observations+self._num_camera_inputs)] = self.elevationMap * 3
+        # Prepare previous heightmap inputs
+        # memories = torch.permute(self.heightmap_memory,(1,2,0)) # Shift dimensions to prepare for flattening
+        # memories = memories[:,:,3::4] # take every fourth memory
+        # memories = memories.flatten(1,2) # flatten input
+        # self.obs_buf[..., self._num_camera_inputs+self._num_observations:self.cfg["env"]["numObservations"]]
+
+        #print(self.elevationMap.shape)
         #print(torch.max(self.obs_buf[0,0:152]))
         #self.obs_buf[..., 3:6] = self.root_linvels
         #self.obs_buf[..., 6:9] = self.root_angvels

@@ -4,7 +4,7 @@ import numpy as np
 #import heigtmap_distribution
 import matplotlib.pyplot as plt
 
-def heightmap_distribution( delta=0, front_heavy=0, limit=3, plot=True):
+def heightmap_distribution(x_limit, y_limit, square=False, y_start=0.296, delta=0, front_heavy=0, plot=True):
 
     point_distribution = []
 
@@ -13,30 +13,38 @@ def heightmap_distribution( delta=0, front_heavy=0, limit=3, plot=True):
         print("Need delta value!")
         exit()
 
-    y = 0.296
-    while y < limit:
+    y = y_start
+    while y < y_limit:
         
         x = 0
 
         delta += front_heavy
 
-        while x < limit_at_x(y):
+        flag = True
+        if square==False:
+            limit = limit_at_x(y)
+            if x_limit < limit_at_x(y):
+                limit = x_limit
+        else:
+            limit = x_limit
+
+
+        while x < limit:
             
-            if x == 0:
-                point_distribution.append([-x, -y])
+            if x < -limit:
+                x += delta
+                flag = False
+
+            if flag:
+                x -= delta
             else:
-                point_distribution.append([-x, -y])
                 point_distribution.append([x, -y])
-            
-            x += delta
+                x += delta
 
         y += delta
 
     point_distribution = np.round(point_distribution, 4)
-    
-    #print("Distribution created:")
-    #print(np.shape(point_distribution))
-    #print(distribution)
+
 
     if plot == True:
         fig, ax = plt.subplots()
@@ -47,7 +55,7 @@ def heightmap_distribution( delta=0, front_heavy=0, limit=3, plot=True):
     return point_distribution
 
 def limit_at_x(x):
-    return x*(0.24555/0.296)+0.13338
+    return x*(4.3315)-0.129945
 
 if __name__ == "__main__":
     heightmap_distribution( delta=0.06, limit=1.6,front_heavy=0.01, plot=True)

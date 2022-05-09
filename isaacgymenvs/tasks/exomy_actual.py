@@ -30,7 +30,7 @@ class Exomy_actual(VecTask):
         self.cfg = cfg
         #self.Kinematics = Rover()
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
-        self._num_camera_inputs = 150
+        self._num_camera_inputs = 1080
         self._num_observations = 4
         self.cfg["env"]["numCamera"] = self._num_camera_inputs
         self.cfg["env"]["numObservations"] = self._num_observations + self._num_camera_inputs
@@ -128,10 +128,11 @@ class Exomy_actual(VecTask):
         self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
 
         # Depth detection points. Origin is body origin(Can be identified in SolidWorks.)
-        exo_depth_points = heightmap_distribution( delta=0.1, limit=1.2,front_heavy=0.0, plot=False) #Uniform
+        # exo_depth_points = heightmap_distribution( delta=0.1, limit=1.2,front_heavy=0.0, plot=False) #Uniform
+        # exo_depth_points = heightmap_distribution( delta=0.07, limit=2,front_heavy=0.012, plot=False) # Weigted little towards front
+        exo_depth_points = heightmap_distribution( 1.12, 1.2, square=True, y_start=0.03, delta=0.05, front_heavy=0.0, plot=True) #Big square - Bounded by real bounds
+        # exo_depth_points = heightmap_distribution( delta=0.06, limit=1.6,front_heavy=0.01, plot=True) # Weigted more towards front
 
-        # heightmap_distribution( delta=0.07, limit=2,front_heavy=0.012, plot=False) # Weigted little towards front
-        # heightmap_distribution( delta=0.06, limit=1.6,front_heavy=0.01, plot=True) # Weigted more towards front
         self.direction_vector = torch.zeros([self.num_envs, 2], device='cuda:0')
         # Convert numpy to tensor
         self.exo_depth_points_tensor = torch.tensor(exo_depth_points, device='cuda:0')

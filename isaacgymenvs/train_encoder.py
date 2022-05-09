@@ -69,7 +69,7 @@ cfg_ppo["kl_threshold"] = 0.008
 # logging to TensorBoard and write checkpoints each 120 and 3000 timesteps respectively
 cfg_ppo["experiment"]["write_interval"] = 120
 cfg_ppo["experiment"]["checkpoint_interval"] = 3000
-cfg_ppo["experiment"]["experiment_name"] = "TestWithMotionConstraintv5EpisodeLength1500HElongerhorizonHigherPenaltyV12Horizon25"
+cfg_ppo["experiment"]["experiment_name"] = "TwoCams[60,20]"
 agent = PPO(models=models_ppo,
             memory=memory, 
             cfg=cfg_ppo, 

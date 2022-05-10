@@ -11,7 +11,7 @@ from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.trainers.torch import SequentialTrainer
 from skrl.envs.torch import wrap_env
 from skrl.envs.torch import load_isaacgym_env_preview2, load_isaacgym_env_preview3
-from learning.model import StochasticActor, StochasticCritic,StochasticActorHeightmap, DeterministicHeightmap
+from learning.model import StochasticActor, StochasticCritic,StochasticActorHeightmap, DeterministicHeightmap, StochasticActorHeightmapWithMemory
 from gym.spaces import Box
 from skrl.utils.model_instantiators import deterministic_model, Shape
 
@@ -25,18 +25,18 @@ env = wrap_env(env)
 device = env.device
 
 # Instantiate a RandomMemory as rollout buffer (any memory can be used for this)
-memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=device)
+memory = RandomMemory(memory_size=30, num_envs=env.num_envs, device=device)
 
 
 # Instantiate the agent's models (function approximators).
 # PPO requires 2 models, visit its documentation for more details
 # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#spaces-and-models
-models_ppo = {  "policy": StochasticActorHeightmap(env.observation_space, env.action_space, network_features=[512,256,128], encoder_features=[80,60], activation_function="relu"),
+models_ppo = {  "policy": StochasticActorHeightmap(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[60,20], activation_function="elu"),
                 "value": None}
 
 # load checkpoint
-models_ppo["policy"].load("./runs/TestWithNormalizedReward/checkpoints/237000_policy.pt")
-
+models_ppo["policy"].load("./runs/3000_policy.pt")
+print(models_ppo)
 
 
 
@@ -53,6 +53,7 @@ cfg_ppo = PPO_DEFAULT_CONFIG.copy()
 cfg_ppo["random_timesteps"] = 0
 cfg_ppo["experiment"]["write_interval"] = 16
 cfg_ppo["experiment"]["checkpoint_interval"] = 0
+cfg_ppo["experiment"]["experiment_name"] = "REMOVE"
 agent = PPO(models=models_ppo,
             memory=memory, 
             cfg=cfg_ppo, 

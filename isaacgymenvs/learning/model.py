@@ -121,7 +121,7 @@ class DeterministicActor(DeterministicModel):
 #         return x
 
 class StochasticActorHeightmap(GaussianModel):
-    def __init__(self, observation_space, action_space, num_exteroception=150, device = "cuda:0", network_features=[512,256,128], encoder_features=[80,60], activation_function="relu",clip_actions=False, clip_log_std = True, min_log_std= -20.0, max_log_std = 2.0):
+    def __init__(self, observation_space, action_space, num_exteroception=1080, device = "cuda:0", network_features=[512,256,128], encoder_features=[80,60], activation_function="relu",clip_actions=False, clip_log_std = True, min_log_std= -20.0, max_log_std = 2.0):
         super().__init__(observation_space, action_space, device, clip_actions)
         self.num_exteroception = num_exteroception  # External information (Heightmap)
         self.num_proprioception = observation_space.shape[0] - self.num_exteroception 
@@ -250,7 +250,7 @@ class StochasticActorHeightmapWithCNN(GaussianModel):
 
 
 class StochasticActorHeightmapGLU(GaussianModel):
-    def __init__(self, observation_space, action_space, num_exteroception=150, device = "cuda:0", network_features=[512,256,128], encoder_features=[80,60], activation_function="relu",clip_actions=False, clip_log_std = True, min_log_std= -20.0, max_log_std = 2.0):
+    def __init__(self, observation_space, action_space, num_exteroception=1080, device = "cuda:0", network_features=[512,256,128], encoder_features=[80,60], activation_function="relu",clip_actions=False, clip_log_std = True, min_log_std= -20.0, max_log_std = 2.0):
         super().__init__(observation_space, action_space, device, clip_actions)
         self.num_exteroception = num_exteroception  # External information (Heightmap)
         self.num_proprioception = observation_space.shape[0] - self.num_exteroception 
@@ -286,7 +286,7 @@ class StochasticActorHeightmapGLU(GaussianModel):
 
 
 class DeterministicHeightmap(DeterministicModel):
-    def __init__(self, observation_space, action_space, num_exteroception=150, device = "cuda:0", network_features=[128,64], encoder_features=[80,60], activation_function="relu", clip_actions=False):
+    def __init__(self, observation_space, action_space, num_exteroception=1080, device = "cuda:0", network_features=[128,64], encoder_features=[80,60], activation_function="relu", clip_actions=False):
         super().__init__(observation_space, action_space, device, clip_actions)
         self.num_exteroception = num_exteroception  # External information (Heightmap)
         self.num_proprioception = observation_space.shape[0] - self.num_exteroception 
@@ -397,7 +397,7 @@ class DeterministicHeightmapWithCNN(DeterministicModel):
         return x
         
 class DeterministicHeightmapTD3(DeterministicModel):
-    def __init__(self, observation_space, action_space, num_exteroception=150, device = "cuda:0", network_features=[128,64], encoder_features=[80,60], activation_function="relu", clip_actions=False):
+    def __init__(self, observation_space, action_space, num_exteroception=1080, device = "cuda:0", network_features=[128,64], encoder_features=[80,60], activation_function="relu", clip_actions=False):
         super().__init__(observation_space, action_space, device, clip_actions)
         self.num_exteroception = num_exteroception  # External information (Heightmap)
         self.num_proprioception = observation_space.shape[0] - self.num_exteroception 

@@ -14,7 +14,7 @@ from isaacgym import gymapi, gymtorch, gymutil
 from scipy.spatial.transform import Rotation as R
 from utils.exo_depth_observation import (exo_depth_observation, height_lookup,
                                          visualize_points)
-from utils.heigtmap_distribution import heightmap_distribution
+from utils.heigtmap_distribution import heightmap_distribution, heightmap_overlay
 from utils.kinematics import Ackermann
 from utils.tensor_quat_to_euler import tensor_quat_to_eul
 from utils.terrain_generation import *
@@ -30,7 +30,7 @@ class Exomy_actual(VecTask):
         self.cfg = cfg
         #self.Kinematics = Rover()
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
-        self._num_camera_inputs = 150
+        self._num_camera_inputs = 1080
         self._num_observations = 4
         self.cfg["env"]["numCamera"] = self._num_camera_inputs
         self.cfg["env"]["numObservations"] = self._num_observations + self._num_camera_inputs#*5
@@ -128,21 +128,21 @@ class Exomy_actual(VecTask):
         self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
 
         # Depth detection points. Origin is body origin(Can be identified in SolidWorks.)
-        #exo_depth_points = heightmap_distribution( 0.375, 1.2, square=True, delta=0.05, front_heavy=0.0, plot=True) #Small square
-        exo_depth_points = heightmap_distribution( 1.12, 1.2, square=True, y_start=0, delta=0.05, front_heavy=0.0, plot=True) #Big square
-        #exo_depth_points = heightmap_distribution( 1.12, 1.2, square=False, y_start=0.296, delta=0.05, front_heavy=0.0, plot=True) #Old dist
-        print(exo_depth_points.shape)
+        # exo_depth_points = heightmap_distribution( delta=0.1, limit=1.2,front_heavy=0.0, plot=False) #Uniform
+        # exo_depth_points = heightmap_distribution( delta=0.07, limit=2,front_heavy=0.012, plot=False) # Weigted little towards front
+        exo_dp_dim, exo_depth_points = heightmap_distribution( 1.12, 1.2, square=True, y_start=0.03, delta=0.05, front_heavy=0.0, plot=False) #Big square - Bounded by real bounds
+        # exo_depth_points = heightmap_distribution( delta=0.06, limit=1.6,front_heavy=0.01, plot=True) # Weigted more towards front
 
-        # heightmap_distribution( delta=0.07, limit=2,front_heavy=0.012, plot=False) # Weigted little towards front
-        # heightmap_distribution( delta=0.06, limit=1.6,front_heavy=0.01, plot=True) # Weigted more towards front
-        self.direction_vector = torch.zeros([self.num_envs, 2], device=self.device)
+
+        self.direction_vector = torch.zeros([self.num_envs, 2], device='cuda:0')
         # Convert numpy to tensor
         self.exo_depth_points_tensor = torch.tensor(exo_depth_points, device=self.device)
         # Initialize empty location tensor for all robots
         self.exo_locations_tensor = torch.zeros([self.num_envs, 6], device=self.device)
         # Tensor for heightmap memory
         self.heightmap_memory = torch.zeros(16,self.num_envs, self._num_camera_inputs,device=self.device) # save 16 timesteps -> 4 secs
-
+        # Tensor that describes the valid heightmap entries
+        self.exo_dp_overlay = heightmap_overlay(exo_dp_dim, self.exo_depth_points_tensor)
 
         # Spawn offset. Used for offsetting goal locations.
         self.spawn_offset = torch.zeros([self.num_envs, 3], device=self.device)
@@ -631,6 +631,8 @@ class Exomy_actual(VecTask):
         #print(depth_point_locations)
         # Lookup heigt at depth point locations.
         self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3], exo_rot, self.exo_depth_points_tensor)
+        # Fill invalid intries with zeros
+        self.elevationMap[:] = self.elevationMap[:]*self.exo_dp_overlay    
         #print(torch.max(self.elevationMap[2]))
         # Visualize points for robot [0]
         #visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1,self.exo_locations_tensor[:,0:3])

@@ -185,7 +185,7 @@ class Exomy_actual(VecTask):
         if terrain_length != terrain_width:
             print("!!!   terrain width != terrain height, PLEASE FIX   !!!")
         # KEEP TERRAIN WIDTH AND LENGTH EQUAL!!! - check_spawn_slope will not work if the are not.  
-        horizontal_scale = 0.025
+        horizontal_scale = 0.025#0.025
          # resolution per meter 
         vertical_scale = 0.005 # vertical resolution [m]
         self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
@@ -201,7 +201,7 @@ class Exomy_actual(VecTask):
         self.heightfield[0:int(terrain_width/horizontal_scale),:] = rock_heigtfield.height_field_raw
         vertices, triangles = convert_heightfield_to_trimesh1(self.heightfield, horizontal_scale=horizontal_scale, vertical_scale=vertical_scale, slope_threshold=None)
         # Decimate mesh and reduce number of vertices
-        vertices, triangles = polygon_reduction(vertices, triangles, target_vertices=50000)
+        vertices, triangles = polygon_reduction(vertices, triangles, target_vertices=200000)
 
         self.tensor_map = torch.tensor(self.heightfield, device='cuda:0')
         self.horizontal_scale = horizontal_scale
@@ -723,10 +723,11 @@ def compute_exomy_reward(root_positions, target_root_positions,
 
 
 
-    dot =  ((target_vector[..., 0] * torch.cos(root_euler[..., 2] - (math.pi/2))) + (target_vector[..., 1] * torch.sin(root_euler[..., 2] - (math.pi/2)))) / ((torch.sqrt(torch.square(target_vector[..., 0]) + torch.square(target_vector[..., 1]))) * torch.sqrt(torch.square(torch.cos(root_euler[..., 2] - (math.pi/2))) + torch.square(torch.sin(root_euler[..., 2] - (math.pi/2)))))
-    angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
-    heading_diff = torch.arccos(angle)
-    heading_diff_reward = torch.where(progress_buf < 200, (-heading_diff * (200-progress_buf))/200*(torch.abs(actions_nn[:,0,0]))*0.0, zero_reward)
+    # dot =  ((target_vector[..., 0] * torch.cos(root_euler[..., 2] - (math.pi/2))) + (target_vector[..., 1] * torch.sin(root_euler[..., 2] - (math.pi/2)))) / ((torch.sqrt(torch.square(target_vector[..., 0]) + torch.square(target_vector[..., 1]))) * torch.sqrt(torch.square(torch.cos(root_euler[..., 2] - (math.pi/2))) + torch.square(torch.sin(root_euler[..., 2] - (math.pi/2)))))
+    # angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
+    # heading_diff = torch.arccos(angle)
+    # heading_diff_reward = torch.where(progress_buf < 200, (-heading_diff * (200-progress_buf))/200*(torch.abs(actions_nn[:,0,0]))*0.0, zero_reward)
+    heading_diff_reward = zero_reward
     #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
     
 

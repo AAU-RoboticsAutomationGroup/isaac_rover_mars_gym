@@ -73,16 +73,9 @@ cfg_ppo["kl_threshold"] = 0.008
 # logging to TensorBoard and write checkpoints each 120 and 3000 timesteps respectively
 cfg_ppo["experiment"]["write_interval"] = 120
 cfg_ppo["experiment"]["checkpoint_interval"] = 3000
-<<<<<<< HEAD
-<<<<<<< HEAD
 cfg_ppo["experiment"]["experiment_name"] = "wandbTEST2"#"REMOVETestWithCNN-K5S2P2V3"
 cfg_ppo["experiment"]["group"] = "testGroup"#"REMOVETestWithCNN-K5S2P2V3"
-=======
-cfg_ppo["experiment"]["experiment_name"] = "XTwoCams(1.2)(H0.1)(GA0.1)(CR0.3)[80,60]Many_small_rocks"
->>>>>>> f6116dd4a4586ff39bad811760950337a2d6bad7
-=======
-cfg_ppo["experiment"]["experiment_name"] = "XTwoCams(1.2)(H0.1)(GA0.1)(CR0.3)[80,60]Many_small_rocks"
->>>>>>> f6116dd4a4586ff39bad811760950337a2d6bad7
+
 agent = PPO(models=models_ppo,
             memory=memory, 
             cfg=cfg_ppo, 

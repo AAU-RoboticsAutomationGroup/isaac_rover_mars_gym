@@ -789,7 +789,7 @@ def compute_exomy_reward(root_positions, target_root_positions,
     
 
     #goal_angle_penalty = (heading_diff/3.1415) * rew_scales['goal_angle']
-    goal_angle_penalty = torch.where(torch.abs(heading_diff) > 1, -torch.abs(heading_diff*0.3*rew_scales['goal_angle']), zero_reward)
+    goal_angle_penalty = torch.where(torch.abs(heading_diff) > 2, -torch.abs(heading_diff*0.3*rew_scales['goal_angle']), zero_reward)
 
 
     # distance to target

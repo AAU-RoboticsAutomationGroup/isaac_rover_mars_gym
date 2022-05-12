@@ -17,7 +17,7 @@ def cfa(cfa: float, rock_diameter: float):
     return Fk(rock_diameter,cfa)
 
 def add_rocks_terrain(terrain, rock_height = (0.1,0.2)):
-    k = 0.35
+    k = 0.065
     #k = 0.15    # total fractional area covered by rocks
     #sample_size = int(0.5 / terrain.horizontal_scale)
     #probs = np.arange(terrain.horizontal_scale, sample_size, terrain.horizontal_scale)
@@ -33,7 +33,7 @@ def add_rocks_terrain(terrain, rock_height = (0.1,0.2)):
         rock_radius = (i * rock_distribution_step) / 2        
         lower_bound = terrain.length * terrain.width * cfa(k,rock_diameter=i*rock_distribution_step)
         upper_bound = terrain.length * terrain.width * cfa(k,rock_diameter=(i+1)*rock_distribution_step)
-        num_rocks = int(lower_bound-upper_bound)
+        num_rocks = int((lower_bound-upper_bound)/(rock_radius*rock_radius*3.1415))
 
         random_positions = (sampler_halton.random(n=num_rocks))
 

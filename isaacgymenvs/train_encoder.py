@@ -35,8 +35,8 @@ memory = RandomMemory(memory_size=60, num_envs=env.num_envs, device=device)
 # Instantiate the agent's models (function approximators).
 # PPO requires 2 models, visit its documentation for more details
 # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#spaces-and-models
-models_ppo = {  "policy": StochasticActorHeightmap(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[60,20], activation_function="leakyrelu"),
-                "value": DeterministicHeightmap(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[60,20] ,activation_function="leakyrelu")}
+models_ppo = {  "policy": StochasticActorHeightmap(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[80,40], activation_function="leakyrelu"),
+                "value": DeterministicHeightmap(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[80,40] ,activation_function="leakyrelu")}
 # models_ppo = {  "policy": StochasticActorHeightmapWithMemory(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[60,20], activation_function="leakyrelu"),
 #                 "value": DeterministicHeightmapWithMemory(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[60,20] ,activation_function="leakyrelu")}
 #models_ppo = {  "policy": StochasticActorHeightmapWithCNN(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[80,60], activation_function="leakyrelu"),
@@ -73,8 +73,12 @@ cfg_ppo["kl_threshold"] = 0.008
 # logging to TensorBoard and write checkpoints each 120 and 3000 timesteps respectively
 cfg_ppo["experiment"]["write_interval"] = 120
 cfg_ppo["experiment"]["checkpoint_interval"] = 3000
+<<<<<<< HEAD
 cfg_ppo["experiment"]["experiment_name"] = "wandbTEST2"#"REMOVETestWithCNN-K5S2P2V3"
 cfg_ppo["experiment"]["group"] = "testGroup"#"REMOVETestWithCNN-K5S2P2V3"
+=======
+cfg_ppo["experiment"]["experiment_name"] = "XTwoCams(1.2)(H0.1)(GA0.1)(CR0.3)[80,60]Many_small_rocks"
+>>>>>>> f6116dd4a4586ff39bad811760950337a2d6bad7
 agent = PPO(models=models_ppo,
             memory=memory, 
             cfg=cfg_ppo, 

@@ -12,7 +12,7 @@ env:
   controlFrequencyInv: 5 # 5hz
   clipObservations: 5.0
   clipActions: 1.0
-  exomyResetDistance:  0.31  # Distance to rock for exomy to reset 
+  exomyResetDistance:  0.23  # Distance to rock for exomy to reset 
   targetResetDistance: 0.4 # Distance to rock for target to reset
   # set to True if you use camera sensors in the environment
   enableCameraSensors: False
@@ -20,7 +20,7 @@ env:
     # rewards
     terminalReward: 0
     pos_reward: 1.0
-    collision_reward: 0
+    collision_reward: 0.3
     heading_contraint_reward: 0.1 #0.05
     torque_reward_driving: 0.001 #0.0005
     torque_reward_steering: 0.001  #0.0005 #-1.
@@ -28,7 +28,7 @@ env:
     motion_contraint_reward: -0.01  #0.005
     acceleration_reward: 0.0 #-0.0005
     vel_near_goal_reward: 0.0 #-0.005
-    goal_angle_reward: 0.05
+    goal_angle_reward: 0.1
 
     # torqueRewardScale: -0.00002 # -0.000025
     # jointAccRewardScale: -0.0005 # -0.0025

@@ -187,7 +187,7 @@ class Exomy_actual(VecTask):
         if terrain_length != terrain_width:
             print("!!!   terrain width != terrain height, PLEASE FIX   !!!")
         # KEEP TERRAIN WIDTH AND LENGTH EQUAL!!! - check_spawn_slope will not work if the are not.  
-        horizontal_scale = 0.1#0.025
+        horizontal_scale = 0.025#0.025
          # resolution per meter 
         vertical_scale = 0.005 # vertical resolution [m]
         self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
@@ -203,7 +203,7 @@ class Exomy_actual(VecTask):
         self.heightfield[0:int(terrain_width/horizontal_scale),:] = rock_heigtfield.height_field_raw
         vertices, triangles = convert_heightfield_to_trimesh1(self.heightfield, horizontal_scale=horizontal_scale, vertical_scale=vertical_scale, slope_threshold=None)
         # Decimate mesh and reduce number of vertices
-        #vertices, triangles = polygon_reduction(vertices, triangles, target_vertices=200000)
+        vertices, triangles = polygon_reduction(vertices, triangles, target_vertices=200000)
 
         self.tensor_map = torch.tensor(self.heightfield, device='cuda:0')
         self.horizontal_scale = horizontal_scale

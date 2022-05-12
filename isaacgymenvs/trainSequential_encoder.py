@@ -25,7 +25,7 @@ device = env.device
 #@hydra.main(config_path="./cfg", config_name="config")
 def run_tests():
     #config = OmegaConf.to_yaml(cfg)
-    path = 'cfg/tests/test_activation.yaml'
+    path = 'cfg/tests/test_value_kl_batch.yaml'
     cfg = OmegaConf.load(path)
     timesteps = 20000
     agent = []
@@ -45,6 +45,8 @@ def run_tests():
             model_cfg["experiment"]["experiment_name"] = str(test) + "-" + str(n)
             model_cfg["experiment"]["group"] = config["group"]
             model_cfg["lambda"] = config["lambda"]
+            model_cfg["policy_learning_rate"] = config["learning_rate"]
+            model_cfg["value_learning_rate"] = config["learning_rate"]
             agent = get_agent(config, model, memory, model_cfg, env)
             cfg_trainer = {"timesteps": timesteps, "headlesAs": True}
             trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
@@ -100,7 +102,7 @@ def get_cfg(config):
             cfg_ppo = PPO_DEFAULT_CONFIG.copy()
             cfg_ppo["rollouts"] = config['horizon_length']
             cfg_ppo["learning_epochs"] = 4
-            cfg_ppo["mini_batches"] = config['horizon_length']
+            cfg_ppo["mini_batches"] = config['mini_batch']
             cfg_ppo["discount_factor"] = 0.99
             cfg_ppo["lambda"] = 0.95
             cfg_ppo["policy_learning_rate"] = 0.0003
@@ -112,8 +114,8 @@ def get_cfg(config):
             cfg_ppo["value_clip"] = 0.2
             cfg_ppo["clip_predicted_values"] = True
             cfg_ppo["entropy_loss_scale"] = 0.0
-            cfg_ppo["value_loss_scale"] = 1.0
-            cfg_ppo["kl_threshold"] = 0.008
+            cfg_ppo["value_loss_scale"] = config['value_scale']
+            cfg_ppo["kl_threshold"] = config['kl']
             return cfg_ppo
         elif config['algorithm'] == 'TD3':
             cfg_td3 = TD3_DEFAULT_CONFIG.copy()

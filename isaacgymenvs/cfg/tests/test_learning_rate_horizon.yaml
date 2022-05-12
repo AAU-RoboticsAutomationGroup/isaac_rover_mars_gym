@@ -1,0 +1,134 @@
+# GAMMA [0.999,0.99,0.95,0.9,0.8]
+
+
+ tests: 
+  lr00003: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [80,60]
+    activation_function: "leakyrelu"
+    activation_function_critic: "leakyrelu"
+    activation_function_encoder: "leakyrelu"
+    algorithm: "ppo"
+    horizon_length: 30
+    lambda: 0.95
+    learning_rate: 0.0003
+    group: "lr00003"
+    n: 5
+  lr00001: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [80,60]
+    activation_function: "leakyrelu"
+    activation_function_critic: "leakyrelu"
+    activation_function_encoder: "leakyrelu"
+    algorithm: "ppo"
+    horizon_length: 30
+    lambda: 0.95
+    learning_rate: 0.0001
+    group: "lr00001"
+    n: 5
+  lr00009: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [80,60]
+    activation_function: "leakyrelu"
+    activation_function_critic: "leakyrelu"
+    activation_function_encoder: "leakyrelu"
+    algorithm: "ppo"
+    horizon_length: 30
+    lambda: 0.95
+    learning_rate: 0.0009
+    group: "lr00009"
+    n: 5
+  lr000003: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [80,60]
+    activation_function: "leakyrelu"
+    activation_function_critic: "leakyrelu"
+    activation_function_encoder: "leakyrelu"
+    algorithm: "ppo"
+    horizon_length: 30
+    lambda: 0.95
+    learning_rate: 0.00003
+    group: "lr000003"
+    n: 5
+  lr0003: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [80,60]
+    activation_function: "leakyrelu"
+    activation_function_critic: "leakyrelu"
+    activation_function_encoder: "leakyrelu"
+    algorithm: "ppo"
+    horizon_length: 30
+    lambda: 0.95
+    learning_rate: 0.003
+    group: "lr0003"
+    n: 5
+  horizon5: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [80,60]
+    activation_function: "leakyrelu"
+    activation_function_critic: "leakyrelu"
+    activation_function_encoder: "leakyrelu"
+    algorithm: "ppo"
+    horizon_length: 5
+    group: "horizon5"
+    learning_rate: 0.0003
+    lambda: 0.95
+    n: 5
+  horizon15: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [80,60]
+    activation_function: "leakyrelu"
+    activation_function_critic: "leakyrelu"
+    activation_function_encoder: "leakyrelu"
+    algorithm: "ppo"
+    horizon_length: 15
+    group: "horizon15"
+    learning_rate: 0.0003
+    lambda: 0.95
+    n: 5
+  horizon30: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [80,60]
+    activation_function: "leakyrelu"
+    activation_function_critic: "leakyrelu"
+    activation_function_encoder: "leakyrelu"
+    algorithm: "ppo"
+    horizon_length: 30
+    group: "horizon30"
+    learning_rate: 0.0003
+    lambda: 0.95
+    n: 5
+  horizon60: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [80,60]
+    activation_function: "leakyrelu"
+    activation_function_critic: "leakyrelu"
+    activation_function_encoder: "leakyrelu"
+    algorithm: "ppo"
+    horizon_length: 60
+    group: "horizon60"
+    learning_rate: 0.0003
+    lambda: 0.95
+    n: 5
+  horizon90: 
+    actor_mlp: [256,160,128]
+    critic_mlp: [256,160,128]
+    encoder_mlp: [80,60]
+    activation_function: "leakyrelu"
+    activation_function_critic: "leakyrelu"
+    activation_function_encoder: "leakyrelu"
+    algorithm: "ppo"
+    horizon_length: 90
+    group: "horizon90"
+    learning_rate: 0.0003
+    lambda: 0.95
+    n: 5

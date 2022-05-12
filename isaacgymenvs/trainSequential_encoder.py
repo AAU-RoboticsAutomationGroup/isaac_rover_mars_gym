@@ -12,6 +12,7 @@ from skrl.agents.torch.sac import SAC, SAC_DEFAULT_CONFIG
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.noises.torch import GaussianNoise, OrnsteinUhlenbeckNoise
 from skrl.trainers.torch import SequentialTrainer
+import wandb
 
 env = load_isaacgym_env_preview3(task_name="Exomy_actual")
 
@@ -28,27 +29,27 @@ def run_tests():
     cfg = OmegaConf.load(path)
     timesteps = 20000
     agent = []
-    for test in cfg['tests']:
-        # Load config for current test
-        config = cfg['tests'][test]
-        # Instantiate a RandomMemory as rollout buffer (any memory can be used for this)
-        memory = RandomMemory(memory_size=config['horizon_length']  , num_envs=env.num_envs, device=device)
-        # Get model for reinforcement learning algorithm
-        model = get_model(config)
-        # Get config file for reinforcement learning algo
-        model_cfg = get_cfg(config)
-        # Configure how often to save
-        for n in range(config['n']):
-        model_cfg["experiment"]["write_interval"] = 120
-        model_cfg["experiment"]["checkpoint_interval"] = 3000
+    for n in range(5):
+        for test in cfg['tests']:
+            # Load config for current test
+            config = cfg['tests'][test]
+            # Instantiate a RandomMemory as rollout buffer (any memory can be used for this)
+            memory = RandomMemory(memory_size=config['horizon_length']  , num_envs=env.num_envs, device=device)
+            # Get model for reinforcement learning algorithm
+            model = get_model(config)
+            # Get config file for reinforcement learning algo
+            model_cfg = get_cfg(config)
+            # Configure how often to save
+            model_cfg["experiment"]["write_interval"] = 120
+            model_cfg["experiment"]["checkpoint_interval"] = 3000
             model_cfg["experiment"]["experiment_name"] = str(test) + "-" + str(n)
             model_cfg["experiment"]["group"] = config["group"]
             model_cfg["lambda"] = config["lambda"]
-        agent = get_agent(config, model, memory, model_cfg, env)
-        cfg_trainer = {"timesteps": timesteps, "headlesAs": True}
-        trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
-        trainer.train()
-
+            agent = get_agent(config, model, memory, model_cfg, env)
+            cfg_trainer = {"timesteps": timesteps, "headlesAs": True}
+            trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
+            trainer.train()
+            wandb.finish()
 
 def get_model(config):
     if config['algorithm'] == 'ppo':

@@ -21,12 +21,14 @@ from utils.terrain_generation import *
 from utils.torch_jit_utils import *
 
 from tasks.base.vec_task import VecTask
+# import the noise class
 
+from skrl.noises.torch import OrnsteinUhlenbeckNoise,GaussianNoise
 
 class Exomy_actual(VecTask):
 
     def __init__(self, cfg, sim_device, graphics_device_id, headless):
-
+        self.noise = GaussianNoise(mean=0, std=0.015, device="cuda:0")
         self.cfg = cfg
         #self.Kinematics = Rover()
         self.max_episode_length = self.cfg["env"]["maxEpisodeLength"]
@@ -663,6 +665,8 @@ class Exomy_actual(VecTask):
         #self.obs_buf[..., 2] = (self.root_euler[..., 2])
         self.obs_buf[..., 2:4] = self.actions_nn[:,:,0] / 3
         self.obs_buf[...,self._num_observations:(self._num_observations+self._num_camera_inputs)] = self.elevationMap * 3
+        # Add noise to the system
+        self.obs_buf += self.noise.sample_like(self.obs_buf)
         # Prepare previous heightmap inputs
         # memories = torch.permute(self.heightmap_memory,(1,2,0)) # Shift dimensions to prepare for flattening
         # memories = memories[:,:,3::4] # take every fourth memory

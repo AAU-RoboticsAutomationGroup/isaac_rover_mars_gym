@@ -12,7 +12,8 @@ class Layer(nn.Module):
             "relu" : nn.ReLU(inplace=True),
             "leakyrelu" :nn.LeakyReLU(),
             "sigmoid" : nn.Sigmoid(),
-            "tanh" : nn.Tanh()
+            "tanh" : nn.Tanh(),
+            "relu6" : nn.ReLU6()
            } 
         self.conv = nn.Sequential(
             nn.Linear(in_channels,out_channels),

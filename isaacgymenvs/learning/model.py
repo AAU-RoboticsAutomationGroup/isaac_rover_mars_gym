@@ -22,13 +22,15 @@ class Layer(nn.Module):
         return self.conv(x)
 
 class DoubleConv(nn.Module):
-    def __init__(self, in_channels=1, out_channels=16):
+    def __init__(self, in_channels=1, out_channels=24):
         super(DoubleConv, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, 1, 1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(out_channels, out_channels, 3, 1, 1),
-            nn.ReLU(inplace=True),
+            nn.Conv2d(in_channels, 4, 5, 1, 0),
+            nn.LeakyReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),    
+            nn.Conv2d(4, 8, 5, 1, 0),
+            nn.LeakyReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=2, stride=2),
         )
 
     def forward(self, x):
@@ -56,7 +58,6 @@ class StochasticActor(GaussianModel):
             x = layer(x)
         return x, self.log_std_parameter
         
-
 class StochasticCritic(DeterministicModel):
     def __init__(self, observation_space, action_space, device = "cuda:0", features=[512,256,128], activation_function="elu",clip_actions=False, clip_log_std = True, min_log_std= -20.0, max_log_std = 2.0):
         super().__init__(observation_space, action_space, device, clip_actions)
@@ -98,27 +99,6 @@ class DeterministicActor(DeterministicModel):
         for layer in self.network:
             x = layer(x)
         return x
-
-# class DeterministicCritic(DeterministicModel):
-#     def __init__(self, observation_space, action_space, device = "cuda:0", features=[512,256,128], activation_function="elu",clip_actions=False):
-#         super().__init__(observation_space, action_space, device, clip_actions)
-
-#         self.network = nn.ModuleList()
-        
-
-#         in_channels = observation_space.shape[0]
-#         for feature in features:
-#             self.network.append(Layer(in_channels, feature, activation_function))
-#             in_channels = feature
-
-#         self.network.append(nn.Linear(in_channels,1))
-
-
-#     def compute(self, states, taken_actions):
-#         x = states
-#         for layer in self.network:
-#             x = layer(x)
-#         return x
 
 class StochasticActorHeightmap(GaussianModel):
     def __init__(self, observation_space, action_space, num_exteroception=1080, device = "cuda:0", network_features=[512,256,128], encoder_features=[80,60], activation_function="relu",clip_actions=False, clip_log_std = True, min_log_std= -20.0, max_log_std = 2.0):
@@ -184,14 +164,15 @@ class StochasticActorHeightmapWithMemory(GaussianModel):
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, states, taken_actions):
-        print(states.shape)
+        #print(states.shape)
         x = states[:,self.num_proprioception:]
-        print(x.shape)
+        #print(x.shape)
         x = x.reshape(x.shape[0],self.num_exteroception,self.num_memories)
         x = x.unsqueeze(dim=1)
         x = self.cnn(x)
+        #print(x.shape)
         x = x.squeeze()
-        print(x.shape)
+        #print(x.shape)
         for layer in self.encoder:
             x = layer(x)
         x = torch.cat((states[:,0:self.num_proprioception], x), dim=1)
@@ -212,7 +193,7 @@ class StochasticActorHeightmapWithCNN(GaussianModel):
         self.cnn = nn.ModuleList()
 
         # Create encoder for heightmap
-        in_channels = int((self.num_exteroception * self.num_rows)) #- 2) / 2)
+        in_channels = 192#276#int((self.num_exteroception * self.num_rows)/4) #- 2) / 2)
         for feature in encoder_features:
             self.encoder.append(Layer(in_channels, feature, activation_function))
             in_channels = feature
@@ -231,15 +212,17 @@ class StochasticActorHeightmapWithCNN(GaussianModel):
         self.log_std_parameter = nn.Parameter(torch.zeros(self.num_actions))
 
     def compute(self, states, taken_actions):
-        print(states.shape)
+        #print(states.shape)
         x = states[:,self.num_proprioception:]
-        print(x.shape)
+        #print(x.shape)
         x = x.reshape(x.shape[0],self.num_exteroception,self.num_rows)
         x = x.unsqueeze(dim=1)
-        x = self.cnn(x, in_channels=1, out_channels=16)
-        x = self.cnn(x, in_channels=16, out_channels=1)
-        x = x.squeeze()
-        print(x.shape)
+        x = self.cnn(x)
+        #print(x.shape)
+        #x = x.squeeze()
+        x = x.flatten(2,3)
+        x = x.flatten(1,2)
+        #print(x.shape)
         for layer in self.encoder:
             x = layer(x)
         x = torch.cat((states[:,0:self.num_proprioception], x), dim=1)
@@ -366,7 +349,7 @@ class DeterministicHeightmapWithCNN(DeterministicModel):
         self.encoder = nn.ModuleList()  # Encoder with MLPs for heightmap
 
         # Create encoder for heightmap
-        in_channels = int((self.num_exteroception * self.num_rows)) #- 2) / 2)
+        in_channels = 192#276#int((self.num_exteroception * self.num_rows)/4) #- 2) / 2)
         for feature in encoder_features:
             self.encoder.append(Layer(in_channels, feature, activation_function))
             in_channels = feature
@@ -386,9 +369,10 @@ class DeterministicHeightmapWithCNN(DeterministicModel):
         x = states[:,self.num_proprioception:]
         x = x.reshape(x.shape[0],self.num_exteroception,self.num_rows)
         x = x.unsqueeze(dim=1)
-        x = self.cnn(x, in_channels=1, out_channels=16)
-        x = self.cnn(x, in_channels=16, out_channels=1)
-        x = x.squeeze()
+        x = self.cnn(x)
+        #x = x.squeeze()
+        x = x.flatten(2,3)
+        x = x.flatten(1,2)
         for layer in self.encoder:
             x = layer(x)
         x = torch.cat([states[:,0:self.num_proprioception], x], dim=1)

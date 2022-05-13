@@ -11,7 +11,7 @@ from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.trainers.torch import SequentialTrainer
 from skrl.envs.torch import wrap_env
 from skrl.envs.torch import load_isaacgym_env_preview2, load_isaacgym_env_preview3
-from learning.model import StochasticActor, StochasticCritic,StochasticActorHeightmap, DeterministicHeightmap,StochasticActorHeightmapGLU
+from learning.model import StochasticActor, StochasticCritic,StochasticActorHeightmap, DeterministicHeightmap, DeterministicHeightmapWithMemory, StochasticActorHeightmapWithMemory, DeterministicHeightmapWithCNN, StochasticActorHeightmapWithCNN
 from gym.spaces import Box
 from skrl.utils.model_instantiators import deterministic_model, Shape
 import math
@@ -35,8 +35,12 @@ memory = RandomMemory(memory_size=60, num_envs=env.num_envs, device=device)
 # Instantiate the agent's models (function approximators).
 # PPO requires 2 models, visit its documentation for more details
 # https://skrl.readthedocs.io/en/latest/modules/skrl.agents.ppo.html#spaces-and-models
-models_ppo = {  "policy": StochasticActorHeightmap(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[80,60], activation_function="leakyrelu"),
-                "value": DeterministicHeightmap(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[80,60] ,activation_function="leakyrelu")}
+models_ppo = {  "policy": StochasticActorHeightmap(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[80,40], activation_function="leakyrelu"),
+                "value": DeterministicHeightmap(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[80,40] ,activation_function="leakyrelu")}
+# models_ppo = {  "policy": StochasticActorHeightmapWithMemory(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[60,20], activation_function="leakyrelu"),
+#                 "value": DeterministicHeightmapWithMemory(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[60,20] ,activation_function="leakyrelu")}
+#models_ppo = {  "policy": StochasticActorHeightmapWithCNN(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[80,60], activation_function="leakyrelu"),
+#                "value": DeterministicHeightmapWithCNN(env.observation_space, env.action_space, network_features=[256,160,128], encoder_features=[80,60] ,activation_function="leakyrelu")}
 
 #https://machinelearningmastery.com/weight-initialization-for-deep-learning-neural-networks/
 # Initialize the models' parameters (weights and biases) using a Gaussian distribution
@@ -69,7 +73,9 @@ cfg_ppo["kl_threshold"] = 0.008
 # logging to TensorBoard and write checkpoints each 120 and 3000 timesteps respectively
 cfg_ppo["experiment"]["write_interval"] = 120
 cfg_ppo["experiment"]["checkpoint_interval"] = 3000
-cfg_ppo["experiment"]["experiment_name"] = "XTwoCams(1.2)(H0.1)(GA0.1)(CR0.3)[80,60]Many_small_rocks"
+cfg_ppo["experiment"]["experiment_name"] = "wandbTEST2"#"REMOVETestWithCNN-K5S2P2V3"
+cfg_ppo["experiment"]["group"] = "testGroup"#"REMOVETestWithCNN-K5S2P2V3"
+
 agent = PPO(models=models_ppo,
             memory=memory, 
             cfg=cfg_ppo, 

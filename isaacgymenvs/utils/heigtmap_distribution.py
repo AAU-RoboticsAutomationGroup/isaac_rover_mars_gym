@@ -81,6 +81,6 @@ def heightmap_overlay(dim, point_distrubution):
     ones = torch.ones_like(point_distrubution[:,0])
     belowOuter = point_distrubution[:,1] <= OuterLine(torch.abs(point_distrubution[:,0]))
     belowInner = point_distrubution[:,1] <= InnerLine(torch.abs(point_distrubution[:,0]))
-    overlay = torch.where(torch.bitwise_and(belowInner, belowOuter), ones, zeros)
+    overlay = torch.where(belowInner, ones, zeros)
 
     return overlay

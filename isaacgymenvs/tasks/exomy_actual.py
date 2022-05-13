@@ -58,7 +58,6 @@ class Exomy_actual(VecTask):
         self.rew_scales["goal_angle"] = self.cfg["env"]["learn"]["goal_angle_reward"] 
         
         super().__init__(config=self.cfg, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless)
-
         # Retrieves buffer for Actor root states.
         # position([0:3]), rotation([3:7]), linear velocity([7:10]), and angular velocity([10:13])
         # Buffer has shape (num_environments, num_actors * 13).

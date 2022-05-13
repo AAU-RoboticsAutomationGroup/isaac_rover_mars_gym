@@ -632,7 +632,7 @@ class Exomy_actual(VecTask):
         # Lookup heigt at depth point locations.
         self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3], exo_rot, self.exo_depth_points_tensor)
         # Fill invalid intries with zeros
-        self.elevationMap[:] = self.elevationMap[:]*self.exo_dp_overlay    
+        # self.elevationMap[:] = self.elevationMap[:]*self.exo_dp_overlay    
         #print(torch.max(self.elevationMap[2]))
         # Visualize points for robot [0]
         #visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1,self.exo_locations_tensor[:,0:3])

@@ -11,7 +11,7 @@ from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.trainers.torch import SequentialTrainer
 from skrl.envs.torch import wrap_env
 from skrl.envs.torch import load_isaacgym_env_preview2, load_isaacgym_env_preview3
-from learning.model import StochasticActor, StochasticCritic,StochasticActorHeightmap, DeterministicHeightmap, StochasticActorHeightmapWithMemory
+from learning.model import StochasticActorHeightmap, DeterministicHeightmap
 from gym.spaces import Box
 from skrl.utils.model_instantiators import deterministic_model, Shape
 

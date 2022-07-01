@@ -74,3 +74,7 @@ WORKDIR /home/gymuser/isaac_rover
   
 
 <!---</details>--->
+
+### 2. Run Isaac Gym
+1. cd isaacgymenvs
+2. python train.py

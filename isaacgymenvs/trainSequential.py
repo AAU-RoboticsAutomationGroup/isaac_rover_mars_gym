@@ -5,13 +5,14 @@ from omegaconf import DictConfig, OmegaConf
 from skrl.envs.torch import wrap_env
 from skrl.envs.torch import load_isaacgym_env_preview2, load_isaacgym_env_preview3
 from skrl.memories.torch import RandomMemory
-from learning.model import StochasticActor, StochasticCritic, DeterministicActor, DeterministicCritic
+from learning.model import StochasticActor, StochasticCritic, DeterministicActor, DeterministicCritic, StochasticActorHeightmap, DeterministicHeightmap
 from skrl.agents.torch.ddpg import DDPG, DDPG_DEFAULT_CONFIG
 from skrl.agents.torch.td3 import TD3, TD3_DEFAULT_CONFIG
 from skrl.agents.torch.sac import SAC, SAC_DEFAULT_CONFIG
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.noises.torch import GaussianNoise, OrnsteinUhlenbeckNoise
 from skrl.trainers.torch import SequentialTrainer
+import wandb
 
 env = load_isaacgym_env_preview3(task_name="Exomy_actual")
 
@@ -24,40 +25,45 @@ device = env.device
 #@hydra.main(config_path="./cfg", config_name="config")
 def run_tests():
     #config = OmegaConf.to_yaml(cfg)
-    path = 'cfg/tests/test.yaml'
+    path = 'cfg/tests/motion_contraint_001.yaml'
     cfg = OmegaConf.load(path)
-    timesteps = 100000
+    timesteps = 20000
     agent = []
-    for test in cfg['tests']:
-        # Load config for current test
-        config = cfg['tests'][test]
-        # Instantiate a RandomMemory as rollout buffer (any memory can be used for this)
-        memory = RandomMemory(memory_size=16, num_envs=env.num_envs, device=device)
-        # Get model for reinforcement learning algorithm
-        model = get_model(config)
-        # Get config file for reinforcement learning algo
-        model_cfg = get_cfg(config)
-        # Configure how often to save
-        model_cfg["experiment"]["write_interval"] = 120
-        model_cfg["experiment"]["checkpoint_interval"] = 3000
-        model_cfg["experiment"]["experiment_name"] = config['algorithm'] +'Actor' + str(config['actor_mlp']) + config['activation_function'] + '_Critic' + str(config['critic_mlp']) + config['activation_function_critic'] + '_Encoder' + str(config['encoder_mlp']) + config['activation_function_encoder'] + '_' + test + '_step' + str(timesteps)
-        agent = get_agent(config, model, memory, model_cfg, env)
-        cfg_trainer = {"timesteps": timesteps, "headlesAs": True}
-        trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
-        trainer.train()
-
+    for n in range(5):
+        for test in cfg['tests']:
+            # Load config for current test
+            config = cfg['tests'][test]
+            # Instantiate a RandomMemory as rollout buffer (any memory can be used for this)
+            memory = RandomMemory(memory_size=config['horizon_length']  , num_envs=env.num_envs, device=device)
+            # Get model for reinforcement learning algorithm
+            model = get_model(config)
+            # Get config file for reinforcement learning algo
+            model_cfg = get_cfg(config)
+            # Configure how often to save
+            model_cfg["experiment"]["write_interval"] = 120
+            model_cfg["experiment"]["checkpoint_interval"] = 3000
+            model_cfg["experiment"]["experiment_name"] = str(test) + "-" + str(n)
+            model_cfg["experiment"]["group"] = config["group"]
+            model_cfg["lambda"] = config["lambda"]
+            model_cfg["policy_learning_rate"] = config["learning_rate"]
+            model_cfg["value_learning_rate"] = config["learning_rate"]
+            agent = get_agent(config, model, memory, model_cfg, env)
+            cfg_trainer = {"timesteps": timesteps, "headlesAs": True}
+            trainer = SequentialTrainer(cfg=cfg_trainer, env=env, agents=agent)
+            trainer.train()
+            wandb.finish()
 
 def get_model(config):
     if config['algorithm'] == 'ppo':
         # PPO requires 2 models, visit its documentation for more details
         # https://skrl.readthedocs.io/en/laconfig/modules/skrl.agents.ppo.html#spaces-and-models
-        models = {  "policy": StochasticActor(env.observation_space, env.action_space, features=config['actor_mlp'], activation_function=config['activation_function']),
-                    "value": StochasticCritic(env.observation_space, env.action_space, features=config['critic_mlp'], activation_function=config['activation_function_critic'])}
+        models = {  "policy": StochasticActorHeightmap(env.observation_space, env.action_space, num_exteroception=config["num_exteroception"], network_features=config['actor_mlp'], encoder_features=config['encoder_mlp'], activation_function=config['activation_function']),
+                    "value": DeterministicHeightmap(env.observation_space, env.action_space, num_exteroception=config["num_exteroception"], network_features=config['critic_mlp'], activation_function=config['activation_function_critic'])}
 
         # Initialize the models' parameters (weights and biases) using a Gaussian distribution
         for model in models.values():
             print("hej")
-            model.init_parameters(method_name="normal_", mean=0.0, std=0.1)   
+            model.init_parameters(method_name="normal_", mean=0.0, std=0.05)   
         print('ppo')
     elif config['algorithm'] == 'TD3':
         models = {  "policy": DeterministicActor(env.observation_space, env.action_space, device, clip_actions=True),
@@ -94,11 +100,11 @@ def get_model(config):
 def get_cfg(config):
         if config['algorithm'] == 'ppo':
             cfg_ppo = PPO_DEFAULT_CONFIG.copy()
-            cfg_ppo["rollouts"] = 16
+            cfg_ppo["rollouts"] = config['horizon_length']
             cfg_ppo["learning_epochs"] = 4
-            cfg_ppo["mini_batches"] = 2
+            cfg_ppo["mini_batches"] = config['mini_batch']
             cfg_ppo["discount_factor"] = 0.99
-            cfg_ppo["lambda"] = 0.99
+            cfg_ppo["lambda"] = 0.95
             cfg_ppo["policy_learning_rate"] = 0.0003
             cfg_ppo["value_learning_rate"] = 0.0003
             cfg_ppo["random_timesteps"] = 0
@@ -108,8 +114,8 @@ def get_cfg(config):
             cfg_ppo["value_clip"] = 0.2
             cfg_ppo["clip_predicted_values"] = True
             cfg_ppo["entropy_loss_scale"] = 0.0
-            cfg_ppo["value_loss_scale"] = 1.0
-            cfg_ppo["kl_threshold"] = 0.008
+            cfg_ppo["value_loss_scale"] = config['value_scale']
+            cfg_ppo["kl_threshold"] = config['kl']
             return cfg_ppo
         elif config['algorithm'] == 'TD3':
             cfg_td3 = TD3_DEFAULT_CONFIG.copy()

@@ -186,7 +186,7 @@ class Exomy_actual(VecTask):
         if terrain_length != terrain_width:
             print("!!!   terrain width != terrain height, PLEASE FIX   !!!")
         # KEEP TERRAIN WIDTH AND LENGTH EQUAL!!! - check_spawn_slope will not work if the are not.  
-        horizontal_scale = 0.025#0.025
+        horizontal_scale = 0.05 #0.025
          # resolution per meter 
         vertical_scale = 0.005 # vertical resolution [m]
         self.heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
@@ -672,14 +672,6 @@ class Exomy_actual(VecTask):
         # memories = memories.flatten(1,2) # flatten input
         # self.obs_buf[..., self._num_camera_inputs+self._num_observations:self.cfg["env"]["numObservations"]]
 
-        #print(self.elevationMap.shape)
-        #print(torch.max(self.obs_buf[0,0:152]))
-        #self.obs_buf[..., 3:6] = self.root_linvels
-        #self.obs_buf[..., 6:9] = self.root_angvels
-        # self.obs_buf[..., 0:3] = (self.target_root_positions - self.root_positions) / 3
-        # self.obs_buf[..., 3:7] = self.root_quats
-        # self.obs_buf[..., 7:10] = self.root_linvels / 2
-        # self.obs_buf[..., 10:13] = self.root_angvels / math.pi
         return self.obs_buf
 
     def compute_rewards(self):
@@ -723,26 +715,17 @@ def compute_exomy_reward(root_positions, target_root_positions,
     direction_vector[:,1] = torch.sin(root_euler[..., 2] - (math.pi/2)) # y value
     target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
     heading_diff = torch.atan2(target_vector[:,0] * direction_vector[:,1] - target_vector[:,1]*direction_vector[:,0],target_vector[:,0]*direction_vector[:,0]+target_vector[:,1]*direction_vector[:,1])
-
-
-
-    # dot =  ((target_vector[..., 0] * torch.cos(root_euler[..., 2] - (math.pi/2))) + (target_vector[..., 1] * torch.sin(root_euler[..., 2] - (math.pi/2)))) / ((torch.sqrt(torch.square(target_vector[..., 0]) + torch.square(target_vector[..., 1]))) * torch.sqrt(torch.square(torch.cos(root_euler[..., 2] - (math.pi/2))) + torch.square(torch.sin(root_euler[..., 2] - (math.pi/2)))))
-    # angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
-    # heading_diff = torch.arccos(angle)
-    # heading_diff_reward = torch.where(progress_buf < 200, (-heading_diff * (200-progress_buf))/200*(torch.abs(actions_nn[:,0,0]))*0.0, zero_reward)
     heading_diff_reward = zero_reward
-    #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
     
 
 
-    # Collision reward - Anton
+    # Collision reward 
     dist_rocks = torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0)   # Calculate distance to center of all rocks
     dist_rocks[:] = dist_rocks[:]-rock_positions[:,3]                               # Calculate distance to nearest point of all rocks
     nearest_rock = torch.min(dist_rocks,dim=1)[0]                                   # Find the closest rock to each robot  
     collision_func = - 0.94/(1 + torch.square((nearest_rock-0.24)*5)+0.06)
     collision_penalty = torch.where(nearest_rock[:] < 1, collision_func ,zero_reward) * rew_scales['collision']
-    # Collision rewardV2 - Anton
-    
+  
     # Uprightness 
     pitch = (((1)/(1+(torch.abs(root_euler[:,0])-0.78)**(2)))-0.73) * ((1)/(0.27))
     roll = (((1)/(1+(torch.abs(root_euler[:,1])-0.78)**(2)))-0.73) * ((1)/(0.27))
@@ -750,14 +733,11 @@ def compute_exomy_reward(root_positions, target_root_positions,
     roll_reward = torch.where(torch.abs(root_euler[:,1]) > 0.1745, roll, zero_reward)
     uprightness_penalty = -((pitch_reward + roll_reward) / 2) * rew_scales["uprightness"]
 
-    # Heading constraint - Ikke køre baglæns
+    # Heading constraint - Avoid driving backwards
     lin_vel = actions_nn[:,0,0]    # Get latest lin_vel
     heading_contraint_penalty = torch.where(lin_vel < 0, -max_reward, zero_reward) * rew_scales["heading"]
 
-
-    # Motion constraint - Ikke oscilere på output
-    #motion_contraint_penalty = -torch.abs(actions_nn[:,0,0] - actions_nn[:,0,1]) * rew_scales["motion_contraint"]
-    # v2
+    # Motion constraint - No oscillatins
     penalty1 = torch.where((torch.abs(actions_nn[:,0,0] - actions_nn[:,0,1]) > 0.05), torch.square(torch.abs(actions_nn[:,0,0] - actions_nn[:,0,1])),zero_reward)
     penalty2 = torch.where((torch.abs(actions_nn[:,1,0] - actions_nn[:,1,1]) > 0.05), torch.square(torch.abs(actions_nn[:,1,0] - actions_nn[:,1,1])),zero_reward)
     motion_contraint_penalty =  torch.pow(penalty1,2) * rew_scales["motion_contraint"]
@@ -778,27 +758,19 @@ def compute_exomy_reward(root_positions, target_root_positions,
     close_to_target_penalty = -1/(1+20*torch.pow(target_dist+0.2,5))  * torch.abs(actions_nn[:,0,0]) * rew_scales['vel_near_goal']
     close_to_target_penalty += -1/(1+20*torch.pow(target_dist+0.2,5))  * torch.abs(actions_nn[:,1,0]) * rew_scales['vel_near_goal']
 
-
     # Total distance
-    # rew_scales["total_distance"]
-    #REMOVE
     torque_penalty_driving = close_to_target_penalty
-    
-    #Normalized penalty
-    
 
     #goal_angle_penalty = (heading_diff/3.1415) * rew_scales['goal_angle']
     goal_angle_penalty = torch.where(torch.abs(heading_diff) > 2, -torch.abs(heading_diff*0.3*rew_scales['goal_angle']), zero_reward)
 
-
     # distance to target
     pos_reward = (1.0 / (1.0 + target_dist * target_dist)) * rew_scales['pos']
     pos_reward = torch.where(target_dist <= 0.03, 1.03*(max_episode_length-progress_buf), pos_reward)  # reward for getting close to target
+    
     # Total reward
     reward = pos_reward + collision_penalty + uprightness_penalty + heading_contraint_penalty + motion_contraint_penalty + torque_penalty_driving + torque_penalty_steering + close_to_target_penalty + heading_diff_reward + goal_angle_penalty
-    # normalized reward
     
-
     # resets due to episode length'
     reset = torch.where(progress_buf >= max_episode_length - 1, ones, die)
     reset = torch.where(target_dist >= 4, ones, reset)
@@ -811,6 +783,8 @@ def compute_exomy_reward(root_positions, target_root_positions,
     
     # Track number of collision 
     collision_tracker = torch.where(nearest_rock <= rock_reset_distance_exomy, max_reward*num_envs, zero_reward)  # Track number of collisions
+
+    # normalized reward
     reward = reward / 3000
     extras = {}
 

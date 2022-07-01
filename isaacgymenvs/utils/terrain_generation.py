@@ -11,14 +11,14 @@ import torch
 def cfa(cfa: float, rock_diameter: float):
     # https://agupubs.onlinelibrary.wiley.com/doi/pdfdirect/10.1029/96JE03319?download=true
     # https://www.researchgate.net/publication/340235161_Geographic_information_system_based_detection_and_quantification_of_boulders_using_HiRISE_imagery_a_case_study_in_Jezero_Crater
-    q = lambda k: 1.79 + (1.52 / k) # Rate at which the total area covered by rocks decreases with increasing diameter q(k)
+    q = lambda k: 1.79 + (0.152 / k) # Rate at which the total area covered by rocks decreases with increasing diameter q(k)
     Fk = lambda D, k: k * math.exp(-q(k)*D) # The cumulative fractional area covered by rocks larger than D
 
     return Fk(rock_diameter,cfa)
 
 def add_rocks_terrain(terrain, rock_height = (0.1,0.2)):
-    k = 0.065
-    #k = 0.15    # total fractional area covered by rocks
+
+    k = 0.03    # total fractional area covered by rocks
     #sample_size = int(0.5 / terrain.horizontal_scale)
     #probs = np.arange(terrain.horizontal_scale, sample_size, terrain.horizontal_scale)
     rock = torch.empty(1,4,device="cuda:0") # [x, y, z, radius]
@@ -62,21 +62,6 @@ def add_rocks_terrain(terrain, rock_height = (0.1,0.2)):
                     raise Exception
             except Exception:
                 pass
-
-     
-
-
-            
-    # for p in HaltonSample:
-    #     try:
-    #         terrain.height_field_raw[p[1]: p[1]+2, p[0]: p[0]+2] += (kernel*1/terrain.vertical_scale)
-    #     except:
-    #         print("fail")
-
-    # heightfield = np.zeros((terrain.num_rows, terrain.num_cols), dtype=np.float64)
-
-
-
 
     return terrain, rocks
 
@@ -270,118 +255,3 @@ class SubTerrain1:
         self.num_rows = int(self.width/self.horizontal_scale)
         self.num_cols = int(self.length/horizontal_scale)
         self.height_field_raw = np.zeros((self.num_rows, self.num_cols), dtype=np.float64)
-
-
-def VisualTest():
-
-    # initialize gym
-    gym = gymapi.acquire_gym()
-
-    # parse arguments
-    args = gymutil.parse_arguments()
-
-    # configure sim
-    sim_params = gymapi.SimParams()
-    sim_params.up_axis = gymapi.UpAxis.UP_AXIS_Z
-    sim_params.gravity = gymapi.Vec3(0.0, 0.0, -9.81)
-
-    if args.physics_engine == gymapi.SIM_FLEX:
-        print("WARNING: Terrain creation is not supported for Flex! Switching to PhysX")
-        args.physics_engine = gymapi.SIM_PHYSX
-    sim_params.substeps = 2
-    sim_params.physx.solver_type = 1
-    sim_params.physx.num_position_iterations = 4
-    sim_params.physx.num_velocity_iterations = 0
-    sim_params.physx.num_threads = args.num_threads
-    sim_params.physx.use_gpu = args.use_gpu
-
-    sim = gym.create_sim(args.compute_device_id, args.graphics_device_id, args.physics_engine, sim_params)
-    if sim is None:
-        print("*** Failed to create sim")
-        quit()
-
-    ### CUSTOM
-
-
-    # create all available terrain types
-    terrain_width = 40 # terrain width [m]
-    terrain_length = 40 # terrain length [m]
-    horizontal_scale = 0.1 # resolution per meter 
-    vertical_scale = 0.005 # vertical resolution [m]
-    heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
-  
-    def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
-    terrain = gaussian_terrain(new_sub_terrain())
-    #heightfield[0:int(terrain_width/horizontal_scale),:]= gaussian_terrain(new_sub_terrain()).height_field_raw
-    heightfield[0:int(terrain_width/horizontal_scale),:]= add_rocks_terrain(terrain=terrain).height_field_raw
-    vertices, triangles = convert_heightfield_to_trimesh1(heightfield, horizontal_scale=horizontal_scale, vertical_scale=vertical_scale, slope_threshold=None)
-   # print(vertices[:])
-    #print(vertices.pop(1).shape)new_sub_terrain()
-
-    # a = np.array([[0.1, 0.1 , 1.0]],dtype=np.float32)
-    # b = np.array([[0.11, 0.1 , 1.0]],dtype=np.float32)
-    # c = np.array([[0.11, 0.11 , 1.0]],dtype=np.float32)
-    # d = np.array([[160000, 160001 , 160002]],dtype=np.uint32)
-    # vertices = np.append(vertices, a, axis=0)
-    # vertices = np.append(vertices, b, axis=0)
-    # vertices = np.append(vertices, c, axis=0)
-
-    # triangles = np.append(triangles, d, axis=0)
-
-     ### CUSTOM
-
-    tm_params = gymapi.TriangleMeshParams()
-    tm_params.nb_vertices = vertices.shape[0]
-    tm_params.nb_triangles = triangles.shape[0]
-    tm_params.transform.p.x = -1.
-    tm_params.transform.p.y = -1.
-    gym.add_triangle_mesh(sim, vertices.flatten(), triangles.flatten(), tm_params)
-    # create viewer
-    viewer = gym.create_viewer(sim, gymapi.CameraProperties())
-    if viewer is None:
-        print("*** Failed to create viewer")
-        quit()
-
-    cam_pos = gymapi.Vec3(-5, -5, 15)
-    cam_target = gymapi.Vec3(0, 0, 10)
-    gym.viewer_camera_look_at(viewer, None, cam_pos, cam_target)
-
-    # subscribe to spacebar event for reset
-    gym.subscribe_viewer_keyboard_event(viewer, gymapi.KEY_R, "reset")
-
-    while not gym.query_viewer_has_closed(viewer):
-
-        # Get input actions from the viewer and handle them appropriately
-        for evt in gym.query_viewer_action_events(viewer):
-            if evt.action == "reset" and evt.value > 0:
-                gym.set_sim_rigid_body_states(sim, initial_state, gymapi.STATE_ALL)
-
-        # step the physics
-        gym.simulate(sim)
-        gym.fetch_results(sim, True)
-
-        # update the viewer
-        gym.step_graphics(sim)
-        gym.draw_viewer(viewer, sim, True)
-
-        # Wait for dt to elapse in real time.
-        # This synchronizes the physics simulation with the rendering rate.
-        gym.sync_frame_time(sim)
-
-    gym.destroy_viewer(viewer)
-    gym.destroy_sim(sim)
-
-if __name__=="__main__":
-    terrain_width = 100 # terrain width [m]
-    terrain_length = 100 # terrain length [m]
-    horizontal_scale = 0.1 # resolution per meter 
-    vertical_scale = 0.005 # vertical resolution [m]
-    #heightfield = np.zeros((int(terrain_width/horizontal_scale), int(terrain_length/horizontal_scale)), dtype=np.int16)
-    #VisualTest()
-    def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
-    print(add_rocks_terrain(terrain=new_sub_terrain()))
-    #def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
-    #add_rocks_terrain(terrain=new_sub_terrain())
-
-else:
-    pass

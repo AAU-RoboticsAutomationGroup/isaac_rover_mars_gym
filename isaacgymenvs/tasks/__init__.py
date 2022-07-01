@@ -27,11 +27,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from tasks.exomy_actual import Exomy_actual
-from tasks.exomy_acc import Exomy_acc
 from tasks.exomy_endtoend import Exomy_endtoend
 # Mappings from strings to environments
 isaacgym_task_map = {
     "Exomy_actual": Exomy_actual,
-    "Exomy_acc": Exomy_acc,
     "Exomy_endtoend": Exomy_endtoend,
 }

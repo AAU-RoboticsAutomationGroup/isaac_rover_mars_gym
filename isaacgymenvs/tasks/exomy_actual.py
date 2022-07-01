@@ -58,9 +58,6 @@ class Exomy_actual(VecTask):
         self.rew_scales["goal_angle"] = self.cfg["env"]["learn"]["goal_angle_reward"] 
         
         super().__init__(config=self.cfg, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless)
-        # Retrieves buffer for Actor root states.
-        # position([0:3]), rotation([3:7]), linear velocity([7:10]), and angular velocity([10:13])
-        # Buffer has shape (num_environments, num_actors * 13).
         dofs_per_env = 15
 
         self.root_tensor = self.gym.acquire_actor_root_state_tensor(self.sim)
@@ -95,24 +92,15 @@ class Exomy_actual(VecTask):
         self.actions_driving_motors = torch.zeros((3, self.num_envs, 6), device=self.device)
 
         self.dof_state = gymtorch.wrap_tensor(self.dof_state_tensor)
-        #self.dof_pos = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 0]
         self.dof_vel = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 1]
         self.last_dof_vel = torch.zeros_like(self.dof_vel)
-        #self.steering_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
-        #self.driving_torques = torch.zeros((self.num_envs, 6, 3), device=self.device)
 
         # Marker position
         self.marker_states = vec_root_tensor[:, 1, :]
         self.marker_positions = self.marker_states[:, 0:3]
-
-        # self.dof_states = vec_dof_tensor
-        # self.dof_positions = vec_dof_tensor[..., 0]
-        # self.dof_velocities = vec_dof_tensor[..., 1]
         
         dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
         self.dof_states = gymtorch.wrap_tensor(dof_state_tensor)
-        # self.dof_positions = self.dof_states.view(self.num_envs, self.num_dof, 2)[..., 0]
-        # self.dof_velocities = self.dof_states.view(self.num_envs, self.num_dof, 2)[..., 1]
 
         self.initial_root_states = self.root_states.clone()
         self.initial_dof_states = self.dof_states.clone()
@@ -129,11 +117,7 @@ class Exomy_actual(VecTask):
         self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
 
         # Depth detection points. Origin is body origin(Can be identified in SolidWorks.)
-        # exo_depth_points = heightmap_distribution( delta=0.1, limit=1.2,front_heavy=0.0, plot=False) #Uniform
-        # exo_depth_points = heightmap_distribution( delta=0.07, limit=2,front_heavy=0.012, plot=False) # Weigted little towards front
         exo_dp_dim, exo_depth_points = heightmap_distribution( 1.12, 1.2, square=True, y_start=0.03, delta=0.05, front_heavy=0.0, plot=False) #Big square - Bounded by real bounds
-        # exo_depth_points = heightmap_distribution( delta=0.06, limit=1.6,front_heavy=0.01, plot=True) # Weigted more towards front
-
 
         self.direction_vector = torch.zeros([self.num_envs, 2], device='cuda:0')
         # Convert numpy to tensor
@@ -193,11 +177,7 @@ class Exomy_actual(VecTask):
 
         def new_sub_terrain(): return SubTerrain1(width=terrain_width,length=terrain_length,horizontal_scale=horizontal_scale,vertical_scale=vertical_scale)
         terrain = gaussian_terrain(new_sub_terrain(),0.5,0.0)
-        #terrain.height_field_raw += np.random.rand(len(terrain.height_field_raw[0]),len(terrain.height_field_raw[1]))
         terrain = gaussian_terrain(terrain,15,5)
-        #terrain = gaussian_terrain(terrain,5,1)
-        #terrain = gaussian_terrain(terrain,1,0.4)
-        #heightfield[0:int(terrain_width/horizontal_scale),:]= gaussian_terrain(new_sub_terrain()).height_field_raw
         rock_heigtfield, self.rock_positions = add_rocks_terrain(terrain=terrain)
         self.heightfield[0:int(terrain_width/horizontal_scale),:] = rock_heigtfield.height_field_raw
         vertices, triangles = convert_heightfield_to_trimesh1(self.heightfield, horizontal_scale=horizontal_scale, vertical_scale=vertical_scale, slope_threshold=None)
@@ -338,14 +318,6 @@ class Exomy_actual(VecTask):
 
         asset_root = "../assets"
         exomy_asset_file = "urdf/exomy_modelv2/urdf/exomy_model.urdf"
-        
-        # if "asset" in self.cfg["env"]:f
-        #     asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), self.cfg["env"]["asset"].get("assetRoot", asset_root))
-        #     asset_file = self.cfg["env"]["asset"].get("assetFileName", asset_file)
-
-        # asset_path = os.path.join(asset_root, asset_file)
-        # asset_root = os.path.dirname(asset_path)
-        # asset_file = os.path.basename(asset_path)
 
         asset_options = gymapi.AssetOptions()
         asset_options.fix_base_link = False
@@ -466,9 +438,7 @@ class Exomy_actual(VecTask):
         RQuat = torch.cuda.FloatTensor(r)
 
         self.root_states[env_ids] = self.initial_root_states[env_ids]
-        #self.root_states[env_ids, 0] = 0#torch_rand_float(-1.5, 1.5, (num_resets, 1), self.device).flatten()
-        #self.root_states[env_ids, 1] = 0#torch_rand_float(-1.5, 1.5, (num_resets, 1), self.device).flatten()
-        self.root_states[env_ids, 2] = 0.2#torch_rand_float(-0.2, 1.5, (num_resets, 1), self.device).flatten()
+        self.root_states[env_ids, 2] = 0.2
 
         #Sets orientation
         self.root_states[env_ids, 3:7] = RQuat
@@ -480,7 +450,6 @@ class Exomy_actual(VecTask):
 
         self.dof_states = self.initial_dof_states
         self.gym.set_actor_root_state_tensor_indexed(self.sim,self.root_tensor, gymtorch.unwrap_tensor(actor_indices), num_resets)
-        #self.dof_positions = 0
         
         self.gym.set_dof_state_tensor_indexed(self.sim, gymtorch.unwrap_tensor(self.dof_states), gymtorch.unwrap_tensor(actor_indices), num_resets)
 
@@ -507,36 +476,14 @@ class Exomy_actual(VecTask):
 
         actions_tensor = torch.zeros(self.num_envs * self.num_dof, device=self.device, dtype=torch.float)
         _actions = actions.to(self.device)
-
-        '''
-        # Code for running ExoMy in end-to-end mode
-        actions_tensor[1::15]=(_actions[:,0]) * self.max_effort_pos  #1  #LF POS
-        actions_tensor[2::15]=(_actions[:,1]) * self.max_effort_vel #2  #LF DRIVE
-        actions_tensor[3::15]=(_actions[:,2]) * self.max_effort_pos #3  #LM POS
-        actions_tensor[4::15]=(_actions[:,3]) * self.max_effort_vel #4  #LM DRIVE
-        actions_tensor[6::15]=(_actions[:,4]) * self.max_effort_pos #6  #LR POS
-        actions_tensor[7::15]=(_actions[:,5]) * self.max_effort_vel #7  #LR DRIVE
-        actions_tensor[8::15]=(_actions[:,6]) * self.max_effort_pos #8  #RR POS
-        actions_tensor[9::15]=(_actions[:,7]) * self.max_effort_vel #9  #RR DRIVE
-        actions_tensor[11::15]=(_actions[:,8]) * self.max_effort_pos #11 #RF POS 
-        actions_tensor[12::15]= (_actions[:,9]) * self.max_effort_vel #12 #RF DRIVE
-        actions_tensor[13::15]=(_actions[:,10]) * self.max_effort_pos #13 #RM POS
-        actions_tensor[14::15]=(_actions[:,11]) * self.max_effort_vel #14 #RM DRIVE
-        '''
         
         # Code for running ExoMy in Ackermann mode
         _actions[:,0] = _actions[:,0] * 3
         _actions[:,1] = _actions[:,1] * 3
         
-       # self.actions_driving_motors = torch.cat((self.actions_driving_motors[1:], motor_velocities.unsqueeze(dim=0)))
-        #self.actions_steering_motors = torch.cat((self.actions_steering_motors[1:], steering_angles.unsqueeze(dim=0)))
         self.actions_nn = torch.cat((torch.reshape(_actions,(self.num_envs, self.cfg["env"]["numActions"], 1)), self.actions_nn), 2)[:,:,0:3]
 
         steering_angles, motor_velocities = Ackermann(_actions[:,0], _actions[:,1])
-    
-        # # a = torch.ones(1,device='cuda:0')*0.3
-        # # b = torch.ones(1,device='cuda:0')*3
-        # steering_angles, motor_velocities = Ackermann(a,b)
 
         steering_angles = -steering_angles
         
@@ -552,67 +499,13 @@ class Exomy_actual(VecTask):
         actions_tensor[12::15]=(motor_velocities[:,3]) #12 #MR DRIVE
         actions_tensor[13::15]=(steering_angles[:,1])  #13 #FR POS
         actions_tensor[14::15]=(motor_velocities[:,1]) #14 #FR DRIVE
-        #
 
-
-
-        
-        '''
-        # Code for extracting position and velocity goal over time.
-
-        # Add new action and torques to "remember"-variable. Remove old action/torque. Used to compute rewards/penalties
-            # Action
-        self.actions_nn = torch.cat((torch.reshape(_actions,(self.num_envs, self.cfg["env"]["numActions"], 1)), self.actions_nn), 2)[:,:,0:3]
-            # Steering angles
-        steering_angles = torch.stack((steering_angles[:,1], steering_angles[:,3], steering_angles[:,5], steering_angles[:,0], steering_angles[:,2], steering_angles[:,4]), dim=1)
-        #steering_angles = torch.stack()
-        self.steering_angles = torch.cat((torch.reshape(steering_angles,(self.num_envs, 6, 1)), self.steering_angles), 2)[:,:,0:3]
-            # Driving velocities
-        driving_velocities = torch.stack((motor_velocities[:,1], motor_velocities[:,3], motor_velocities[:,5], motor_velocities[:,0], motor_velocities[:,2], motor_velocities[:,4]), dim=1)
-        self.driving_velocities = torch.cat((torch.reshape(driving_velocities,(self.num_envs, 6, 1)), self.driving_velocities), 2)[:,:,0:3]
-        '''
-
-        '''
-        # Code for manually setting the speed for exo motors.
-        actions_tensor[1::15] = -math.pi/4 #1  #ML POS
-        actions_tensor[2::15] = 0 #2  #ML DRIVE
-        actions_tensor[3::15] = -math.pi/4 #3  #FL POS
-        actions_tensor[4::15] = 0 #4  #FL DRIVE
-        actions_tensor[6::15] = -math.pi/4 #6  #RL POS
-        actions_tensor[7::15] = 0 #7  #RL DRIVE
-        actions_tensor[8::15] = -math.pi/4 #8  #RR POS
-        actions_tensor[9::15] = 0 #9  #RR DRIVE
-        actions_tensor[11::15] = -math.pi/4 #11 #MR POS 
-        actions_tensor[12::15] = 0 #12 #MR DRIVE
-        actions_tensor[13::15] = -math.pi/4 #13 #FR POS
-        actions_tensor[14::15] = 0 #14 #FR DRIVE
-        speed =10
-        actions_tensor[0] = 100 #BOTH REAR DRIVE        
-        actions_tensor[2] = speed 
-        actions_tensor[3] = 0
-        actions_tensor[4] = speed 
-        actions_tensor[7] = speed 
-        actions_tensor[9] = speed 
-        actions_tensor[12] = speed
-        actions_tensor[14] = speed
-        '''
-        
         # Set 
         self.gym.set_dof_velocity_target_tensor(self.sim, gymtorch.unwrap_tensor(actions_tensor)) #)
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(actions_tensor)) #)
-    #     start = self._num_observations
-    #     end =  self._num_observations+self._num_camera_inputs
-    #     new_heightmap_entry = self.obs_buf[...,start:end]
-    #     new_heightmap_entry = new_heightmap_entry.unsqueeze(dim=0)
-    #     self.heightmap_memory = self.push_to_tensor(self.heightmap_memory, new_heightmap_entry)
-
-    # def push_to_tensor(self, tensor, x):
-    #     return torch.cat((tensor[1:], x)) 
 
     def post_physics_step(self):
-        # implement post-physics simulation code here
-        #    - e.g. compute reward, compute observations
-        
+
         self.progress_buf += 1
         self.gym.refresh_actor_root_state_tensor(self.sim)
         self.gym.refresh_dof_state_tensor(self.sim)
@@ -622,19 +515,19 @@ class Exomy_actual(VecTask):
 
         # Compute location and rotation(RPY) for root body of each robot
 
-        # TODO add offset to the global position
         self.exo_locations_tensor[:, 0:3] = self.location_tensor[:,0:3].add(self.env_origins_tensor)
         exo_rot = tensor_quat_to_eul(self.location_tensor[:,3:7])
         exo_rot[:,2] = torch.atan2(torch.sin(exo_rot[:,2]) * torch.cos(exo_rot[:,1]), torch.cos(exo_rot[:,2]) * torch.cos(exo_rot[:,0])) # Global direction
         
         # Compute depth point locations in x,y from robot orientation and location.
         depth_point_locations = exo_depth_observation(exo_rot, self.exo_locations_tensor[:,0:3], self.exo_depth_points_tensor)
-        #print(depth_point_locations)
+
         # Lookup heigt at depth point locations.
         self.elevationMap = height_lookup(self.tensor_map, depth_point_locations, self.horizontal_scale, self.vertical_scale, self.shift, self.exo_locations_tensor[:,0:3], exo_rot, self.exo_depth_points_tensor)
         # Fill invalid intries with zeros
         self.elevationMap[:] = self.elevationMap[:]*self.exo_dp_overlay    
-        #print(torch.max(self.elevationMap[2]))
+
+
         # Visualize points for robot [0]
         #visualize_points(self.viewer, self.gym, self.envs[0], depth_point_locations[0, :, :], self.elevationMap[0:1,:], 0.1,self.exo_locations_tensor[:,0:3])
         
@@ -647,30 +540,16 @@ class Exomy_actual(VecTask):
         self.last_dof_vel[:] = self.dof_vel[:]
 
     def compute_observations(self):
-        # eps = 1e-7
-        #print(self.root_euler[0:10, 2])
-        # dot = torch.sum(self.target_vector * self.direction_vector,dim=1) / (torch.linalg.norm(self.target_vector,dim=1) * torch.linalg.norm(self.direction_vector,dim=1))
-        # angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
-        # heading_diff = torch.arccos(angle)
         #https://stackoverflow.com/questions/2150050/finding-signed-angle-between-vectors
         heading_diff = torch.atan2(self.target_vector[:,0] * self.direction_vector[:,1] - self.target_vector[:,1]*self.direction_vector[:,0],self.target_vector[:,0]*self.direction_vector[:,0]+self.target_vector[:,1]*self.direction_vector[:,1])
-        #dot =  ((target_vector[..., 0] * torch.cos(root_euler[..., 2] - (math.pi/2))) + (target_vector[..., 1] * torch.sin(root_euler[..., 2] - (math.pi/2)))) / ((torch.sqrt(torch.square(target_vector[..., 0]) + torch.square(target_vector[..., 1]))) * torch.sqrt(torch.square(torch.cos(root_euler[..., 2] - (math.pi/2))) + torch.square(torch.sin(root_euler[..., 2] - (math.pi/2)))))
-        # angle = torch.clamp(dot, min = (-1 + eps), max = (1 - eps))
-        # heading_diff = torch.arccos(angle)
-        #pos_reward = 1.0 / (1.0 + target_dist * target_dist + (0.01 * progress_buf) + (0.5 * heading_diff))
-        #self.obs_buf[..., 0:2] = (self.target_root_positions[..., 0:2] - self.root_positions[..., 0:2]) / 4
         self.obs_buf[..., 0] = torch.linalg.norm(self.target_vector,dim=1) / 4
         self.obs_buf[..., 1] = (heading_diff) / math.pi
         #self.obs_buf[..., 2] = (self.root_euler[..., 2])
         self.obs_buf[..., 2:4] = self.actions_nn[:,:,0] / 3
         self.obs_buf[...,self._num_observations:(self._num_observations+self._num_camera_inputs)] = self.elevationMap * 3
+        
         # Add noise to the system
         self.obs_buf += self.noise.sample_like(self.obs_buf)
-        # Prepare previous heightmap inputs
-        # memories = torch.permute(self.heightmap_memory,(1,2,0)) # Shift dimensions to prepare for flattening
-        # memories = memories[:,:,3::4] # take every fourth memory
-        # memories = memories.flatten(1,2) # flatten input
-        # self.obs_buf[..., self._num_camera_inputs+self._num_observations:self.cfg["env"]["numObservations"]]
 
         return self.obs_buf
 
@@ -708,7 +587,6 @@ def compute_exomy_reward(root_positions, target_root_positions,
     
     target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
 
-
     eps = 1e-7
     direction_vector = torch.zeros([ones.shape[0], 2], device='cuda:0')
     direction_vector[:,0] = torch.cos(root_euler[..., 2] - (math.pi/2)) # x value
@@ -716,8 +594,6 @@ def compute_exomy_reward(root_positions, target_root_positions,
     target_vector = target_root_positions[..., 0:2] - root_positions[..., 0:2]
     heading_diff = torch.atan2(target_vector[:,0] * direction_vector[:,1] - target_vector[:,1]*direction_vector[:,0],target_vector[:,0]*direction_vector[:,0]+target_vector[:,1]*direction_vector[:,1])
     heading_diff_reward = zero_reward
-    
-
 
     # Collision reward 
     dist_rocks = torch.cdist(global_location[:,0:2],rock_positions[:,0:2], p=2.0)   # Calculate distance to center of all rocks

@@ -78,3 +78,6 @@ WORKDIR /home/gymuser/isaac_rover
 ### 2. Run Isaac Gym
 1. cd isaacgymenvs
 2. python train.py
+
+# Other questions
+For other questions, contact Anton, Emil or Jacob at abmo19@student.aau.dk, etpe19@student.aau.dk or jknuds19@student.aau.dk

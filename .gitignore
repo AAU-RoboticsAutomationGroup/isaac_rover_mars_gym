@@ -5,3 +5,4 @@ isaacgymenvs.egg-info/
 isaacgymenvs/wandb/
 RL.egg-info/
 *.pyc
+.DS_Store

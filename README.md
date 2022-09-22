@@ -1,10 +1,24 @@
 # General
-This repo contains the implementation of ExoMy in Isaac Gym made by Group 666(2022), the setup specifically trains ExoMy to navigate in an unstructured environment.
+This repo contains the implementation of ExoMy in Isaac Gym Preview 3 made by Group 666 (Spring 2022)
+
+The setup specifically trains ExoMy to navigate in an unstructured Mars environment.
+
+![space_rover](https://user-images.githubusercontent.com/10414639/191826045-a9c50712-2d81-4dd1-91fe-7e0dc1a5123d.png)
+
+**Training**
+
+https://user-images.githubusercontent.com/10414639/191824917-84412e61-6f6e-46e4-aaa1-2c7245a8e16c.mp4
+
+**Testing**
+
+https://user-images.githubusercontent.com/10414639/191824209-99b48773-32ee-4453-b3c9-88b8f5be6240.mp4
+
+
 
 # Useful commands
 [Commands](docs/Commands.md)
 
-# Install isaac-rover
+# Install isaac-rover-mars-gym
 
 <!---<details><summary>Docker (click to expand)</summary>--->
 
@@ -60,11 +74,11 @@ fi
 4. Insert the follwing code at the bottom of the file and save.
 
 ```
-RUN git clone https://github.com/abmoRobotics/isaac_rover /home/gymuser/isaac_rover
-RUN pip3 install -e /home/gymuser/isaac_rover/.
+RUN git clone https://github.com/AAU-RoboticsAutomationGroup/isaac_rover_mars_gym.git /home/gymuser/isaac_rover_mars_gym
+RUN pip3 install -e /home/gymuser/isaac_rover_mars_gym/.
 RUN git clone https://github.com/Toni-SM/skrl.git /home/gymuser/skrl
 RUN pip3 install -e /home/gymuser/skrl/.
-WORKDIR /home/gymuser/isaac_rover
+WORKDIR /home/gymuser/isaac_rover_mars_gym
 
 ```
 <!---#7. sudo groupadd docker
@@ -83,4 +97,8 @@ WORKDIR /home/gymuser/isaac_rover
 2. python train.py
 
 # Other questions
-For other questions, contact Anton, Emil or Jacob at abmo19@student.aau.dk, etpe19@student.aau.dk or jknuds19@student.aau.dk
+For other questions, contact 
+
+- Anton: abmo19@student.aau.dk
+- Emil: etpe19@student.aau.dk
+- Jacob: jknuds19@student.aau.dk

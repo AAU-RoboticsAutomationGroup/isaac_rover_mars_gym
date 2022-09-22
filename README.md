@@ -1,5 +1,5 @@
 # General
-This repo contains the implementation of ExoMy in Isaac Gym made by Group 666(2022), the setup specifically trains ExoMy to navigate in unstructured terrain.
+This repo contains the implementation of ExoMy in Isaac Gym made by Group 666(2022), the setup specifically trains ExoMy to navigate in an unstructured environment.
 
 # Useful commands
 [Commands](docs/Commands.md)

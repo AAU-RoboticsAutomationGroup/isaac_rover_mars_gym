@@ -14,7 +14,6 @@ https://user-images.githubusercontent.com/10414639/191824917-84412e61-6f6e-46e4-
 https://user-images.githubusercontent.com/10414639/191824209-99b48773-32ee-4453-b3c9-88b8f5be6240.mp4
 
 
-
 # Useful commands
 [Commands](docs/Commands.md)
 
@@ -95,6 +94,14 @@ WORKDIR /home/gymuser/isaac_rover_mars_gym
 ### 2. Run Isaac Gym
 1. cd isaacgymenvs
 2. python train.py
+
+
+# RL Architecture
+
+![rl_architecture](https://user-images.githubusercontent.com/10414639/191829922-0eb13701-f459-4f76-b972-9ac8f095d184.png)
+
+![actor_network](https://user-images.githubusercontent.com/10414639/191830043-5c3ccf35-4297-4219-8d19-ce54e9d02a1e.png)
+
 
 # Other questions
 For other questions, contact 

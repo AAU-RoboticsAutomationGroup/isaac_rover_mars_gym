@@ -1,6 +1,10 @@
 # General
 This repo contains the implementation of ExoMy in Isaac Gym Preview 3 made by Group 666 (Spring 2022)
 
+Branch: Preview4
+Updated for Isaac Gym Preview 4 and SKRL version 0.8.0.
+
+
 The setup specifically trains ExoMy to navigate in an unstructured Mars environment.
 
 ![space_rover](https://user-images.githubusercontent.com/10414639/191826045-a9c50712-2d81-4dd1-91fe-7e0dc1a5123d.png)

@@ -5,12 +5,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # Import the skrl components to build the RL system
-from skrl.models.torch import GaussianModel, DeterministicModel
+from skrl.models.torch import GaussianMixin, DeterministicMixin, Model 
 from skrl.memories.torch import RandomMemory
 from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 from skrl.trainers.torch import SequentialTrainer
 from skrl.envs.torch import wrap_env
-from skrl.envs.torch import load_isaacgym_env_preview2, load_isaacgym_env_preview3
+from skrl.envs.torch import load_isaacgym_env_preview4
 from learning.model import StochasticActorHeightmap, DeterministicHeightmap
 from gym.spaces import Box
 from skrl.utils.model_instantiators import deterministic_model, Shape
@@ -22,7 +22,7 @@ def init_weights(m):
 # Load and wrap the Isaac Gym environment.
 # The following lines are intended to support both versions (preview 2 and 3). 
 # It tries to load from preview 3, but if it fails, it will try to load from preview 2
-env = load_isaacgym_env_preview3(task_name="Exomy_actual")
+env = load_isaacgym_env_preview4(task_name="Exomy_actual")
 
 env = wrap_env(env)
 

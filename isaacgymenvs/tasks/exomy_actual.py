@@ -23,7 +23,7 @@ from utils.torch_jit_utils import *
 from tasks.base.vec_task import VecTask
 # import the noise class
 
-from skrl.noises.torch import OrnsteinUhlenbeckNoise,GaussianNoise
+from skrl.resources.noises.torch import OrnsteinUhlenbeckNoise,GaussianNoise
 
 class Exomy_actual(VecTask):
 
